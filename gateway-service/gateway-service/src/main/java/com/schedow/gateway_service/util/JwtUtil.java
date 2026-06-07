@@ -1,8 +1,9 @@
 package com.schedow.gateway_service.util;
 
+import org.springframework.stereotype.Component;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import org.springframework.stereotype.Component;
 
 @Component
 public class JwtUtil {
