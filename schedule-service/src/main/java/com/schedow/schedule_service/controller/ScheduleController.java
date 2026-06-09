@@ -10,10 +10,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.schedow.schedule_service.dto.CreateRecurringShiftAssignmentRequest;
 import com.schedow.schedule_service.dto.CreateShiftRequest;
+import com.schedow.schedule_service.dto.CreateUnavailabilityRequest;
 import com.schedow.schedule_service.dto.CreateWeeklyShiftAssignmentRequest;
+import com.schedow.schedule_service.entity.RecurringShiftAssignment;
 import com.schedow.schedule_service.entity.Shift;
+import com.schedow.schedule_service.entity.Unavailability;
 import com.schedow.schedule_service.entity.WeeklyShiftAssignment;
+import com.schedow.schedule_service.repository.RecurringShiftAssignmentRepository;
 import com.schedow.schedule_service.service.ScheduleService;
 
 @RestController
@@ -21,9 +26,11 @@ import com.schedow.schedule_service.service.ScheduleService;
 public class ScheduleController {
 
 private final ScheduleService scheduleService;
+private final RecurringShiftAssignmentRepository recurringAssignmentRepository;
 
-public ScheduleController(ScheduleService scheduleService) {
+public ScheduleController(ScheduleService scheduleService, RecurringShiftAssignmentRepository recurringAssignmentRepository) {
     this.scheduleService = scheduleService;
+    this.recurringAssignmentRepository = recurringAssignmentRepository;
 }
 
 @PostMapping("/shifts")
@@ -39,6 +46,7 @@ public WeeklyShiftAssignment createAssignment(
 ) {
     return scheduleService.createAssignment(request);
 }
+
 @GetMapping("/assignments/week/{weekStartDate}")
 public List<WeeklyShiftAssignment> getAssignmentsByWeek(
 @PathVariable LocalDate weekStartDate
@@ -46,6 +54,62 @@ public List<WeeklyShiftAssignment> getAssignmentsByWeek(
 return scheduleService
 .getAssignmentsByWeek(weekStartDate);
 }
+
+@PostMapping("/unavailability")
+public Unavailability createUnavailability(
+@RequestBody CreateUnavailabilityRequest request
+) {
+
+return scheduleService
+        .createUnavailability(request);
+
+
+}
+
+@GetMapping("/unavailability/user/{userId}")
+public List<Unavailability> getUserUnavailability(@PathVariable Long userId) 
+{
+return scheduleService.getUserUnavailability(userId);
+}
+
+@PostMapping("/recurring-assignments")
+public RecurringShiftAssignment
+createRecurringAssignment(
+@RequestBody
+CreateRecurringShiftAssignmentRequest request
+) {
+
+
+return scheduleService
+        .createRecurringAssignment(request);
+
+
+}
+
+
+
+
+@GetMapping("/recurring-assignments/user/{userId}")
+public List<RecurringShiftAssignment>
+getRecurringAssignments(
+@PathVariable Long userId
+) {
+
+return scheduleService
+        .getRecurringAssignments(userId);
+
+}
+
+@GetMapping("/shifts")
+public List<Shift> getAllShifts() {
+
+return scheduleService.getAllShifts();
+
+
+}
+
+
+
 
 
 }
