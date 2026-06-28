@@ -4,7 +4,6 @@ import com.schedow.user_service.role.Role;
 
 public class UserResponse {
 
-
     private Long id;
 
     private String name;
@@ -12,6 +11,12 @@ public class UserResponse {
     private String email;
 
     private Role role;
+
+    private String site;
+
+    private Integer contractedHours;
+
+    private Boolean active;
 
     public UserResponse() {
     }
@@ -48,5 +53,27 @@ public class UserResponse {
         this.role = role;
     }
 
+    public String getSite() {
+        return site;
+    }
 
+    public void setSite(String site) {
+        this.site = site;
+    }
+
+    public Integer getContractedHours() {
+        return contractedHours;
+    }
+
+    public void setContractedHours(Integer contractedHours) {
+        this.contractedHours = contractedHours;
+    }
+
+    public Boolean getActive() {
+        return active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
+    }
 }

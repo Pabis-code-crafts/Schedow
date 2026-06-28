@@ -2,49 +2,70 @@ package com.schedow.user_service.dto;
 
 import com.schedow.user_service.role.Role;
 
-public class  RegisterUserRequest {
 
-private String name;
+public class RegisterUserRequest {
 
-private String email;
+    private String name;
 
-private String password;
+    private String email;
 
-private Role role;
+    private String password;
 
-public RegisterUserRequest() {
-}
+    private Role role;
 
-public String getName() {
-    return name;
-}
+    private String site;
 
-public void setName(String name) {
-    this.name = name;
-}
+    private Integer contractedHours;
 
-public String getEmail() {
-    return email;
-}
+    public RegisterUserRequest() {
+    }
 
-public void setEmail(String email) {
-    this.email = email;
-}
+    public String getName() {
+        return name;
+    }
 
-public String getPassword() {
-    return password;
-}
+    public void setName(String name) {
+        this.name = name;
+    }
 
-public void setPassword(String password) {
-    this.password = password;
-}
+    public String getEmail() {
+        return email;
+    }
 
-public Role getRole() {
-    return role;
-}
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
-public void setRole(Role role) {
-    this.role = role;
-}
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+
+    public void setRole(Role role) {
+        this.role = role;
+    }
+
+    public String getSite() {
+        return site;
+    }
+
+    public void setSite(String site) {
+        this.site = site;
+    }
+
+    public Integer getContractedHours() {
+        return contractedHours;
+    }
+
+    public void setContractedHours(Integer contractedHours) {
+        this.contractedHours = contractedHours;
+    }
 
 }

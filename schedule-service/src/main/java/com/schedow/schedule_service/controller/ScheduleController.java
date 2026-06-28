@@ -1,6 +1,5 @@
 package com.schedow.schedule_service.controller;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -9,13 +8,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.schedow.schedule_service.dto.CreateRecurringShiftAssignmentRequest;
 import com.schedow.schedule_service.dto.CreateShiftRequest;
 import com.schedow.schedule_service.dto.CreateUnavailabilityRequest;
 import com.schedow.schedule_service.dto.CreateWeeklyShiftAssignmentRequest;
+import com.schedow.schedule_service.dto.ShiftRecommendationRequest;
 import com.schedow.schedule_service.dto.ShiftRecommendationResponse;
 import com.schedow.schedule_service.entity.RecurringShiftAssignment;
 import com.schedow.schedule_service.entity.Shift;
@@ -124,20 +123,17 @@ return scheduleService.getAllShifts();
 // }
 
 
-@GetMapping("/recommendations")
+@PostMapping("/recommendations")
 public List<ShiftRecommendationResponse>
 getRecommendations(
-@RequestParam DayOfWeek dayOfWeek,
-@RequestParam LocalDate date
+@RequestBody
+ShiftRecommendationRequest request
 ) {
 
 return scheduleService
-        .getRecommendations(
-                dayOfWeek,
-                date
-        );
-
+        .getRecommendations(request);
 
 }
+
 
 }

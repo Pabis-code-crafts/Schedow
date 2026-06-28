@@ -233,22 +233,17 @@ getRecommendations(
         Long userId =
                 assignment.getUserId();
 
-        if (isUnavailable(
-                userId,
-                date
-        )) {
+        System.out.println("Evaluating user: " + userId);
 
-            continue;
-        }
+if (isUnavailable(userId, date)) {
+    System.out.println("Rejected - unavailable");
+    continue;
+}
 
-        if (hasConflictingShift(
-                userId,
-                dayOfWeek,
-                targetShift
-        )) {
-
-            continue;
-        }
+if (hasConflictingShift(userId, dayOfWeek, targetShift)) {
+    System.out.println("Rejected - conflicting shift");
+    continue;
+}
 
         int score =
                 calculateScore(userId);
@@ -261,6 +256,8 @@ getRecommendations(
                 );
 
         recommendations.add(response);
+        System.out.println("Accepted with score: " + score);
+
     }
 
     recommendations.sort(
@@ -270,6 +267,8 @@ getRecommendations(
                                     a.getScore()
                             )
     );
+
+    
 
     return recommendations;
 }
