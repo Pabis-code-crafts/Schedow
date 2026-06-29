@@ -2,38 +2,57 @@ package com.schedow.schedule_service.dto;
 
 public class ShiftRecommendationResponse {
 
-private Long userId;
+    private Long userId;
 
-private Integer score;
+    private String workerName;
 
-private String reason;
+    private Integer fairnessScore;
 
-public ShiftRecommendationResponse() {
-}
+    private Boolean recurringWorker;
 
-public Long getUserId() {
-    return userId;
-}
+    private String reason;
 
-public void setUserId(Long userId) {
-    this.userId = userId;
-}
+    public ShiftRecommendationResponse() {
+    }
 
-public Integer getScore() {
-    return score;
-}
+    public Long getUserId() {
+        return userId;
+    }
 
-public void setScore(Integer score) {
-    this.score = score;
-}
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
 
-public String getReason() {
-    return reason;
-}
+    public String getWorkerName() {
+        return workerName;
+    }
 
-public void setReason(String reason) {
-    this.reason = reason;
-}
+    public void setWorkerName(String workerName) {
+        this.workerName = workerName;
+    }
 
+    public Integer getFairnessScore() {
+        return fairnessScore;
+    }
+
+    public void setFairnessScore(Integer fairnessScore) {
+        this.fairnessScore = fairnessScore;
+    }
+
+    public Boolean getRecurringWorker() {
+        return recurringWorker;
+    }
+
+    public void setRecurringWorker(Boolean recurringWorker) {
+        this.recurringWorker = recurringWorker;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    public void setReason(String reason) {
+        this.reason = reason;
+    }
 
 }

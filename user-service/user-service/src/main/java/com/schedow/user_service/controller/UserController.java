@@ -1,5 +1,7 @@
 package com.schedow.user_service.controller;
 
+import java.util.List;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,5 +38,8 @@ public UserResponse registerUser(@RequestBody RegisterUserRequest request) {
 public String loginUser(@RequestBody LoginRequest request) {
     return userService.loginUser(request);      
 }
-
+@GetMapping("/workers")
+public List<UserResponse> getWorkers() {
+    return userService.getActiveWorkers();
+}
 }

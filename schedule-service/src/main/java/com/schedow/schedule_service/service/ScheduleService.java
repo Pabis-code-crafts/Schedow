@@ -1,8 +1,8 @@
 package com.schedow.schedule_service.service;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -13,6 +13,7 @@ import com.schedow.schedule_service.dto.CreateUnavailabilityRequest;
 import com.schedow.schedule_service.dto.CreateWeeklyShiftAssignmentRequest;
 import com.schedow.schedule_service.dto.ShiftRecommendationRequest;
 import com.schedow.schedule_service.dto.ShiftRecommendationResponse;
+import com.schedow.schedule_service.dto.UserResponse;
 import com.schedow.schedule_service.entity.RecurringShiftAssignment;
 import com.schedow.schedule_service.entity.Shift;
 import com.schedow.schedule_service.entity.Unavailability;
@@ -24,6 +25,8 @@ import com.schedow.schedule_service.repository.WeeklyShiftAssignmentRepository;
 
 @Service
 public class ScheduleService {
+
+private final WorkerProvider workerProvider;
 
 private final ShiftRepository shiftRepository;
 
@@ -38,17 +41,15 @@ public ScheduleService(
         ShiftRepository shiftRepository,
         WeeklyShiftAssignmentRepository assignmentRepository,
         UnavailabilityRepository unavailabilityRepository,
-        RecurringShiftAssignmentRepository
-                recurringAssignmentRepository
+        RecurringShiftAssignmentRepository recurringAssignmentRepository,
+        WorkerProvider workerProvider
 ) {
 
     this.shiftRepository = shiftRepository;
     this.assignmentRepository = assignmentRepository;
-    this.unavailabilityRepository =
-            unavailabilityRepository;
-
-    this.recurringAssignmentRepository =
-            recurringAssignmentRepository;
+    this.unavailabilityRepository = unavailabilityRepository;
+    this.recurringAssignmentRepository = recurringAssignmentRepository;
+    this.workerProvider = workerProvider;
 }
 
 public Shift createShift(
@@ -196,100 +197,97 @@ getRecurringAssignments(
     return recurringAssignmentRepository
             .findByUserId(userId);
 }
-
-public List<ShiftRecommendationResponse>
-getRecommendations(
+public List<ShiftRecommendationResponse> getRecommendations(
         ShiftRecommendationRequest request
 ) {
 
-    List<ShiftRecommendationResponse>
-            recommendations =
+    Shift shift = shiftRepository.findById(request.getShiftId())
+            .orElseThrow(() -> new RuntimeException("Shift not found"));
+
+    List<UserResponse> workers = workerProvider.getWorkers();
+
+    List<ShiftRecommendationResponse> recommendations =
             new ArrayList<>();
 
-    Shift targetShift =
-            shiftRepository.findById(
-                    request.getShiftId()
-            ).orElseThrow(() ->
-                    new RuntimeException(
-                            "Shift not found"
-                    ));
+    Long recurringWorkerId = null;
 
-    DayOfWeek dayOfWeek =
-            request.getDayOfWeek();
+    List<RecurringShiftAssignment> recurringAssignments =
+            recurringAssignmentRepository.findByDayOfWeek(
+                    request.getDayOfWeek()
+            );
 
-    LocalDate date =
-            request.getDate();
+    for (RecurringShiftAssignment assignment : recurringAssignments) {
 
-    List<RecurringShiftAssignment>
-            recurringAssignments =
-            recurringAssignmentRepository
-                    .findByDayOfWeek(
-                            dayOfWeek
-                    );
+        if (assignment.getShift().getId().equals(shift.getId())) {
 
-    for (RecurringShiftAssignment assignment
-            : recurringAssignments) {
+            recurringWorkerId = assignment.getUserId();
+            break;
+        }
+    }
 
-        Long userId =
-                assignment.getUserId();
+    for (UserResponse worker : workers) {
 
-        System.out.println("Evaluating user: " + userId);
+        if (isUnavailable(worker.getId(), request.getDate())) {
+            continue;
+        }
 
-if (isUnavailable(userId, date)) {
-    System.out.println("Rejected - unavailable");
-    continue;
-}
+        int assignedHours =
+                calculateAssignedHours(worker.getId());
 
-if (hasConflictingShift(userId, dayOfWeek, targetShift)) {
-    System.out.println("Rejected - conflicting shift");
-    continue;
-}
+        int fairness =
+                calculateFairness(
+                        worker.getContractedHours(),
+                        assignedHours
+                );
 
-        int score =
-                calculateScore(userId);
+        boolean recurring =
+                worker.getId().equals(recurringWorkerId);
 
-        ShiftRecommendationResponse
-                response =
+        ShiftRecommendationResponse response =
                 buildRecommendationResponse(
-                        userId,
-                        score
+                        worker,
+                        fairness,
+                        recurring
                 );
 
         recommendations.add(response);
-        System.out.println("Accepted with score: " + score);
-
     }
 
     recommendations.sort(
-            (a, b) ->
-                    b.getScore()
-                            .compareTo(
-                                    a.getScore()
-                            )
+            Comparator.comparing(
+                    ShiftRecommendationResponse::getFairnessScore
+            ).reversed()
     );
 
-    
+    if (recurringWorkerId != null) {
+
+        for (int i = 0; i < recommendations.size(); i++) {
+
+            if (recommendations.get(i).getUserId().equals(recurringWorkerId)) {
+
+                ShiftRecommendationResponse recurring =
+                        recommendations.remove(i);
+
+                recommendations.add(0, recurring);
+
+                break;
+            }
+        }
+    }
 
     return recommendations;
 }
-
 private boolean isUnavailable(
         Long userId,
         LocalDate date
 ) {
 
-    List<Unavailability>
-            unavailabilityList =
-            unavailabilityRepository
-                    .findByUserId(userId);
+    List<Unavailability> unavailabilityList =
+            unavailabilityRepository.findByUserId(userId);
 
-    for (Unavailability unavailability
-            : unavailabilityList) {
+    for (Unavailability unavailability : unavailabilityList) {
 
-        if (unavailability
-                .getUnavailableDate()
-                .equals(date)) {
-
+        if (unavailability.getUnavailableDate().equals(date)) {
             return true;
         }
     }
@@ -297,167 +295,73 @@ private boolean isUnavailable(
     return false;
 }
 
-private boolean hasConflictingShift(
-        Long userId,
-        DayOfWeek dayOfWeek,
-        Shift currentShift
+private int calculateFairness(
+        int contractedHours,
+        int assignedHours
 ) {
 
-    List<WeeklyShiftAssignment>
-            assignments =
+    return contractedHours - assignedHours;
+
+}
+private int calculateAssignedHours(Long userId) {
+
+    List<WeeklyShiftAssignment> assignments =
             assignmentRepository.findAll();
 
-    for (WeeklyShiftAssignment existing
-            : assignments) {
+    int assignedHours = 0;
 
-        if (!existing.getAssignedUserId()
-                .equals(userId)) {
+    for (WeeklyShiftAssignment assignment : assignments) {
 
+        if (!assignment.getAssignedUserId().equals(userId)) {
             continue;
         }
 
-        if (!existing.getDayOfWeek()
-                .equals(dayOfWeek)) {
+        Shift shift = assignment.getShiftTemplate();
 
-            continue;
-        }
+        long hours = java.time.Duration
+                .between(
+                        shift.getStartTime(),
+                        shift.getEndTime()
+                )
+                .toHours();
 
-        Shift existingShift =
-                existing.getShiftTemplate();
-
-        boolean overlap =
-                currentShift.getStartTime()
-                        .isBefore(
-                                existingShift
-                                        .getEndTime()
-                        )
-
-                        &&
-
-                        currentShift.getEndTime()
-                                .isAfter(
-                                        existingShift
-                                                .getStartTime()
-                                );
-
-        if (overlap) {
-
-            return true;
-        }
+        assignedHours += hours;
     }
 
-    return false;
+    return assignedHours;
 }
 
-private int calculateScore(
-        Long userId
-) {
-
-    int score = 100;
-
-    List<WeeklyShiftAssignment>
-            assignments =
-            assignmentRepository.findAll();
-
-    int totalAssignments = 0;
-
-    int weekendAssignments = 0;
-
-    int currentHours = 0;
-
-    for (WeeklyShiftAssignment assignment
-            : assignments) {
-
-        if (!assignment
-                .getAssignedUserId()
-                .equals(userId)) {
-
-            continue;
-        }
-
-        totalAssignments++;
-
-        if (assignment.getDayOfWeek()
-                == DayOfWeek.SATURDAY
-
-                ||
-
-                assignment.getDayOfWeek()
-                        == DayOfWeek.SUNDAY) {
-
-            weekendAssignments++;
-        }
-
-        Shift shift =
-                assignment.getShiftTemplate();
-
-        long hours =
-                java.time.Duration
-                        .between(
-                                shift.getStartTime(),
-                                shift.getEndTime()
-                        )
-                        .toHours();
-
-        currentHours += hours;
-    }
-
-    score += 20;
-
-    score -= (totalAssignments * 5);
-
-    score -= (weekendAssignments * 10);
-
-    int preferredHours =
-            getPreferredHours(userId);
-
-    if (currentHours
-            < preferredHours) {
-
-        score += 15;
-    }
-
-    return score;
-}
-
-private ShiftRecommendationResponse
-buildRecommendationResponse(
-        Long userId,
-        int score
+private ShiftRecommendationResponse buildRecommendationResponse(
+        UserResponse worker,
+        int fairness,
+        boolean recurring
 ) {
 
     ShiftRecommendationResponse response =
             new ShiftRecommendationResponse();
 
-    response.setUserId(userId);
+    response.setUserId(worker.getId());
 
-    response.setScore(score);
+    response.setWorkerName(worker.getName());
 
-    response.setReason(
-            "Available recurring worker"
-    );
+    response.setFairnessScore(fairness);
+
+    response.setRecurringWorker(recurring);
+
+    if (recurring) {
+
+        response.setReason("Recurring worker");
+
+    } else {
+
+        response.setReason("Available worker");
+
+    }
 
     return response;
 }
 
-private int getPreferredHours(
-        Long userId
-) {
 
-    if (userId == 1L) {
-        return 20;
-    }
-
-    if (userId == 2L) {
-        return 15;
-    }
-
-    if (userId == 3L) {
-        return 10;
-    }
-
-    return 12;
-}
 
 
 }

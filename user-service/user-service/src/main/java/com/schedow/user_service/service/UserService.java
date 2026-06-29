@@ -1,5 +1,8 @@
 package com.schedow.user_service.service;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -90,6 +93,19 @@ public UserResponse registerUser(RegisterUserRequest request) {
 
     return response;
 }
+public List<UserResponse> getActiveWorkers() {
+    List<User> activeWorkers = userRepository.findByActiveTrue();
+    return activeWorkers.stream().map(user -> {
+        UserResponse response = new UserResponse();
+        response.setId(user.getId());
+        response.setName(user.getName());
+        response.setEmail(user.getEmail());
+        response.setRole(user.getRole());
+        response.setSite(user.getSite());
+        response.setContractedHours(user.getContractedHours());
+        response.setActive(user.getActive());
+        return response;
+    }).collect(Collectors.toList());
 
-
+}
 }
