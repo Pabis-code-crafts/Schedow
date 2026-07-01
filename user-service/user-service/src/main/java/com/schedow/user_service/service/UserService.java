@@ -1,5 +1,8 @@
 package com.schedow.user_service.service;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -52,24 +55,57 @@ return jwtService.generateToken(user.getEmail());
 
 public UserResponse registerUser(RegisterUserRequest request) {
 
+    if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+        throw new RuntimeException("Email already exists");
+    }
+
     User user = new User();
 
     user.setName(request.getName());
     user.setEmail(request.getEmail());
     user.setPassword(passwordEncoder.encode(request.getPassword()));
     user.setRole(request.getRole());
-    if (userRepository.findByEmail(request.getEmail()).isPresent()) {   
-        throw new RuntimeException("Email already exists");
-    }
+
+    user.setSite(request.getSite());
+
+    user.setContractedHours(
+            request.getContractedHours()
+    );
+
+    user.setActive(true);
+
     User savedUser = userRepository.save(user);
+
     UserResponse response = new UserResponse();
+
     response.setId(savedUser.getId());
     response.setName(savedUser.getName());
     response.setEmail(savedUser.getEmail());
     response.setRole(savedUser.getRole());
+
+    response.setSite(savedUser.getSite());
+
+    response.setContractedHours(
+            savedUser.getContractedHours()
+    );
+
+    response.setActive(savedUser.getActive());
+
     return response;
+}
+public List<UserResponse> getActiveWorkers() {
+    List<User> activeWorkers = userRepository.findByActiveTrue();
+    return activeWorkers.stream().map(user -> {
+        UserResponse response = new UserResponse();
+        response.setId(user.getId());
+        response.setName(user.getName());
+        response.setEmail(user.getEmail());
+        response.setRole(user.getRole());
+        response.setSite(user.getSite());
+        response.setContractedHours(user.getContractedHours());
+        response.setActive(user.getActive());
+        return response;
+    }).collect(Collectors.toList());
 
 }
-
-
 }
