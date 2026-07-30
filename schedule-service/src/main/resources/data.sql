@@ -79,9 +79,34 @@ INSERT INTO unavailability
 (id,user_id,unavailable_date,start_time,end_time,reason)
 VALUES
 (1,4,'2026-06-13','06:00:00','14:00:00','University'),
-
 (2,5,'2026-06-14','12:00:00','21:00:00','Another Job'),
-
 (3,2,'2026-06-13','17:00:00','21:00:00','Family Event'),
-
 (4,3,'2026-06-12','06:00:00','12:00:00','Medical Appointment');
+
+-- ===========================================
+-- RESET SEQUENCES
+-- ===========================================
+
+SELECT setval(
+    pg_get_serial_sequence('shifts', 'id'),
+    COALESCE((SELECT MAX(id) FROM shifts), 1),
+    true
+);
+
+SELECT setval(
+    pg_get_serial_sequence('recurring_shift_assignments', 'id'),
+    COALESCE((SELECT MAX(id) FROM recurring_shift_assignments), 1),
+    true
+);
+
+SELECT setval(
+    pg_get_serial_sequence('weekly_shift_assignments', 'id'),
+    COALESCE((SELECT MAX(id) FROM weekly_shift_assignments), 1),
+    true
+);
+
+SELECT setval(
+    pg_get_serial_sequence('unavailability', 'id'),
+    COALESCE((SELECT MAX(id) FROM unavailability), 1),
+    true
+);

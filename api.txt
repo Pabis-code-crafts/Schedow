@@ -1,0 +1,116 @@
+| Method | Endpoint                                                                     | Service  |
+| ------ | ---------------------------------------------------------------------------- | -------- |
+| GET    | `http://localhost:8082/api/v1/users/test`                                    | User     |
+| POST   | `http://localhost:8082/api/v1/users/register`                                | User     |
+| POST   | `http://localhost:8082/api/v1/users/login`                                   | User     |
+| GET    | `http://localhost:8082/api/v1/users/workers`                                 | User     |
+| POST   | `http://localhost:8084/api/v1/schedules/shifts`                              | Schedule |
+| GET    | `http://localhost:8084/api/v1/schedules/shifts`                              | Schedule |
+| POST   | `http://localhost:8084/api/v1/schedules/assignments`                         | Schedule |
+| GET    | `http://localhost:8084/api/v1/schedules/assignments/week/{weekStartDate}`    | Schedule |
+| POST   | `http://localhost:8084/api/v1/schedules/unavailability`                      | Schedule |
+| GET    | `http://localhost:8084/api/v1/schedules/unavailability/user/{userId}`        | Schedule |
+| POST   | `http://localhost:8084/api/v1/schedules/recurring-assignments`               | Schedule |
+| GET    | `http://localhost:8084/api/v1/schedules/recurring-assignments/user/{userId}` | Schedule |
+| POST   | `http://localhost:8084/api/v1/schedules/recommendations`                     | Schedule |
+
+http://localhost:8082/api/v1/users/register
+{
+    "name": "David",
+    "email": "david@schedow.com",
+    "password": "password123",
+    "role": "WORKER",
+    "site": "Hatfield",
+    "contractedHours": 20,
+    "active": true
+}
+2. Login
+
+POST
+
+http://localhost:8082/api/v1/users/login
+
+Use one of your seeded users.
+
+{
+    "email": "john@schedow.com",
+    "password": "password123"
+}
+
+or
+
+{
+    "email": "admin@schedow.com",
+    "password": "password123"
+}
+3. Create Shift
+
+POST
+
+http://localhost:8084/api/v1/schedules/shifts
+{
+    "name": "Late Night Shift",
+    "startTime": "22:00",
+    "endTime": "06:00"
+}
+4. Create Weekly Assignment
+
+POST
+
+http://localhost:8084/api/v1/schedules/assignments
+{
+    "weekStartDate": "2026-06-29",
+    "dayOfWeek": "MONDAY",
+    "assignedUserId": 1,
+    "shiftId": 1
+}
+5. Create Unavailability
+
+POST
+
+http://localhost:8084/api/v1/schedules/unavailability
+{
+    "userId": 2,
+    "unavailableDate": "2026-06-29",
+    "startTime": "09:00",
+    "endTime": "17:00",
+    "reason": "Medical Appointment"
+}
+6. Create Recurring Assignment
+
+POST
+
+http://localhost:8084/api/v1/schedules/recurring-assignments
+{
+    "userId": 4,
+    "dayOfWeek": "MONDAY",
+    "shiftId": 2
+}
+7. Get Shift Recommendations
+
+POST
+
+http://localhost:8084/api/v1/schedules/recommendations
+{
+    "shiftId": 1,
+    "dayOfWeek": "MONDAY",
+    "date": "2026-06-29"
+}
+Test GET Endpoints
+
+After creating data, test with these:
+
+Workers
+GET http://localhost:8082/api/v1/users/workers
+Shifts
+GET http://localhost:8084/api/v1/schedules/shifts
+Weekly Assignments
+GET http://localhost:8084/api/v1/schedules/assignments/week/2026-06-29
+
+or for your seeded data:
+
+GET http://localhost:8084/api/v1/schedules/assignments/week/2026-06-08
+User Unavailability
+GET http://localhost:8084/api/v1/schedules/unavailability/user/2
+Recurring Assignments
+GET http://localhost:8084/api/v1/schedules/recurring-assignments/user/4
