@@ -36,21 +36,26 @@ this.jwtService = jwtService;
 
 public String loginUser(LoginRequest request) {
 
-User user = userRepository.findByEmail(request.getEmail())
-        .orElseThrow(() -> new RuntimeException("Invalid email or password"));
+    System.out.println("Login request received");
 
-boolean passwordMatches = passwordEncoder.matches(
-        request.getPassword(),
-        user.getPassword()
-);
+    User user = userRepository.findByEmail(request.getEmail())
+            .orElseThrow(() -> new RuntimeException("Invalid email or password"));
 
-if (!passwordMatches) {
-    throw new RuntimeException("Invalid email or password");
+    boolean passwordMatches = passwordEncoder.matches(
+            request.getPassword(),
+            user.getPassword()
+    );
+
+    if (!passwordMatches) {
+        throw new RuntimeException("Invalid email or password");
+    }
+
+    System.out.println("Generating token");
+
+    return jwtService.generateToken(user.getEmail());
 }
 
-return jwtService.generateToken(user.getEmail());
 
-}
 
 
 public UserResponse registerUser(RegisterUserRequest request) {
