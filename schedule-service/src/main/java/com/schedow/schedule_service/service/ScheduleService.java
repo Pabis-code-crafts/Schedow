@@ -5,19 +5,24 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import com.schedow.schedule_service.dto.DashboardResponse;
+import com.schedow.schedule_service.dto.WeekScheduleResponse;
+import com.schedow.schedule_service.dto.UserResponse;
+import com.schedow.schedule_service.dto.WorkerScheduleResponse;
+import com.schedow.schedule_service.entity.Unavailability;
+import com.schedow.schedule_service.entity.WeeklyShiftAssignment;
 import org.springframework.stereotype.Service;
 
+import com.schedow.schedule_service.dto.AssignWorkerRequest;
+import com.schedow.schedule_service.dto.AssignWorkerResponse;
 import com.schedow.schedule_service.dto.CreateRecurringShiftAssignmentRequest;
 import com.schedow.schedule_service.dto.CreateShiftRequest;
 import com.schedow.schedule_service.dto.CreateUnavailabilityRequest;
 import com.schedow.schedule_service.dto.CreateWeeklyShiftAssignmentRequest;
 import com.schedow.schedule_service.dto.ShiftRecommendationRequest;
 import com.schedow.schedule_service.dto.ShiftRecommendationResponse;
-import com.schedow.schedule_service.dto.UserResponse;
 import com.schedow.schedule_service.entity.RecurringShiftAssignment;
 import com.schedow.schedule_service.entity.Shift;
-import com.schedow.schedule_service.entity.Unavailability;
-import com.schedow.schedule_service.entity.WeeklyShiftAssignment;
 import com.schedow.schedule_service.repository.RecurringShiftAssignmentRepository;
 import com.schedow.schedule_service.repository.ShiftRepository;
 import com.schedow.schedule_service.repository.UnavailabilityRepository;
@@ -51,7 +56,127 @@ public ScheduleService(
     this.recurringAssignmentRepository = recurringAssignmentRepository;
     this.workerProvider = workerProvider;
 }
+public AssignWorkerResponse assignWorker(
+        AssignWorkerRequest request
+) {
 
+    Shift shift = shiftRepository.findById(
+            request.getShiftId()
+    ).orElseThrow(() ->
+            new RuntimeException("Shift not found")
+    );
+
+    validateNoShiftConflict(
+        request,
+        shift
+);
+
+validateContractedHours(
+        request,
+        shift
+);
+
+ 
+    WeeklyShiftAssignment assignment =
+            new WeeklyShiftAssignment();
+
+    assignment.setWeekStartDate(
+            request.getWeekStartDate()
+    );
+
+    assignment.setDayOfWeek(
+            request.getDayOfWeek()
+    );
+
+    assignment.setAssignedUserId(
+            request.getUserId()
+    );
+
+    assignment.setShiftTemplate(
+            shift
+    );
+
+    WeeklyShiftAssignment saved =
+            assignmentRepository.save(
+                    assignment
+            );
+
+    UserResponse worker =
+            workerProvider.getWorkers()
+                    .stream()
+                    .filter(w ->
+                            w.getId().equals(
+                                    request.getUserId()
+                            )
+                    )
+                    .findFirst()
+                    .orElseThrow(() ->
+                            new RuntimeException(
+                                    "Worker not found"
+                            )
+                    );
+
+    AssignWorkerResponse response =
+            new AssignWorkerResponse();
+
+    response.setAssignmentId(
+            saved.getId()
+    );
+
+    response.setWorkerName(
+            worker.getName()
+    );
+
+    response.setShiftName(
+            shift.getName()
+    );
+
+    response.setStatus(
+            "SUCCESS"
+    );
+
+    response.setMessage(
+            "Worker assigned successfully."
+    );
+
+    return response;
+}
+
+private void validateContractedHours(
+        AssignWorkerRequest request,
+        Shift newShift
+) {
+
+    UserResponse worker = workerProvider.getWorkers()
+            .stream()
+            .filter(w -> w.getId().equals(request.getUserId()))
+            .findFirst()
+            .orElseThrow(() ->
+                    new RuntimeException("Worker not found"));
+
+    int assignedHours =
+            calculateAssignedHours(
+                    request.getUserId()
+            );
+
+    int newShiftHours =
+            (int) java.time.Duration
+                    .between(
+                            newShift.getStartTime(),
+                            newShift.getEndTime()
+                    )
+                    .toHours();
+
+    int totalHours =
+            assignedHours + newShiftHours;
+
+    if (totalHours > worker.getContractedHours()) {
+
+        throw new RuntimeException(
+                "Assignment exceeds contracted hours."
+        );
+    }
+}
 public Shift createShift(
         CreateShiftRequest request
 ) {
@@ -362,6 +487,169 @@ private ShiftRecommendationResponse buildRecommendationResponse(
 }
 
 
+private void validateNoShiftConflict(
+        AssignWorkerRequest request,
+        Shift newShift
+) {
 
+    List<WeeklyShiftAssignment> assignments =
+            assignmentRepository.findByWeekStartDate(
+                    request.getWeekStartDate()
+            );
 
+    for (WeeklyShiftAssignment assignment : assignments) {
+
+        if (!assignment.getAssignedUserId()
+                .equals(request.getUserId())) {
+            continue;
+        }
+
+        if (!assignment.getDayOfWeek()
+                .equals(request.getDayOfWeek())) {
+            continue;
+        }
+
+        Shift existingShift =
+                assignment.getShiftTemplate();
+
+        boolean overlap =
+                newShift.getStartTime()
+                        .isBefore(existingShift.getEndTime())
+                &&
+                newShift.getEndTime()
+                        .isAfter(existingShift.getStartTime());
+
+        if (overlap) {
+            throw new RuntimeException(
+                    "Worker already has a conflicting shift."
+            );
+        }
+    }
+}
+
+public List<WeekScheduleResponse> getWeekSchedule(
+        LocalDate weekStartDate
+) {
+
+    List<WeeklyShiftAssignment> assignments =
+            assignmentRepository.findByWeekStartDate(
+                    weekStartDate
+            );
+
+    List<UserResponse> workers =
+            workerProvider.getWorkers();
+
+    List<WeekScheduleResponse> response =
+            new ArrayList<>();
+
+    for (WeeklyShiftAssignment assignment : assignments) {
+
+        WeekScheduleResponse dto =
+                new WeekScheduleResponse();
+
+        dto.setDayOfWeek(
+                assignment.getDayOfWeek()
+        );
+
+        dto.setShiftId(
+                assignment.getShiftTemplate().getId()
+        );
+
+        dto.setShiftName(
+                assignment.getShiftTemplate().getName()
+        );
+
+        dto.setWorkerId(
+                assignment.getAssignedUserId()
+        );
+
+        workers.stream()
+                .filter(w ->
+                        w.getId().equals(
+                                assignment.getAssignedUserId()
+                        ))
+                .findFirst()
+                .ifPresent(worker ->
+                        dto.setWorkerName(
+                                worker.getName()
+                        ));
+
+        response.add(dto);
+    }
+
+    return response;
+}
+
+public List<WorkerScheduleResponse> getWorkerSchedule(
+        Long userId
+) {
+
+    List<WeeklyShiftAssignment> assignments =
+            assignmentRepository.findByAssignedUserId(
+                    userId
+            );
+
+    List<WorkerScheduleResponse> response =
+            new ArrayList<>();
+
+    for (WeeklyShiftAssignment assignment : assignments) {
+
+        WorkerScheduleResponse dto =
+                new WorkerScheduleResponse();
+
+        dto.setDayOfWeek(
+                assignment.getDayOfWeek()
+        );
+
+        dto.setShiftName(
+                assignment.getShiftTemplate().getName()
+        );
+
+        dto.setStartTime(
+                assignment.getShiftTemplate()
+                        .getStartTime()
+                        .toString()
+        );
+
+        dto.setEndTime(
+                assignment.getShiftTemplate()
+                        .getEndTime()
+                        .toString()
+        );
+
+        response.add(dto);
+    }
+
+    return response;
+}
+
+public DashboardResponse getDashboard() {
+
+    DashboardResponse response =
+            new DashboardResponse();
+
+    response.setTotalAssignments(
+            assignmentRepository.count() > Integer.MAX_VALUE
+                    ? Integer.MAX_VALUE
+                    : (int) assignmentRepository.count()
+    );
+
+    response.setTotalShifts(
+            shiftRepository.findAll().size()
+    );
+
+    response.setTotalWorkers(
+            workerProvider.getWorkers().size()
+    );
+
+    response.setUnavailableWorkers(
+            (int) unavailabilityRepository.findAll()
+                    .stream()
+                    .map(Unavailability::getUserId)
+                    .distinct()
+                    .count()
+    );
+
+    return response;
+}
 }
