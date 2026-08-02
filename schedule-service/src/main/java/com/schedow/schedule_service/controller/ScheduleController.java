@@ -9,13 +9,24 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import java.time.LocalDate;
+import java.util.List;
 
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+
+import com.schedow.schedule_service.dto.DashboardResponse;
+import com.schedow.schedule_service.dto.WeekScheduleResponse;
+import com.schedow.schedule_service.dto.WorkerScheduleResponse;
+import com.schedow.schedule_service.dto.AssignWorkerRequest;
+import com.schedow.schedule_service.dto.AssignWorkerResponse;
 import com.schedow.schedule_service.dto.CreateRecurringShiftAssignmentRequest;
 import com.schedow.schedule_service.dto.CreateShiftRequest;
 import com.schedow.schedule_service.dto.CreateUnavailabilityRequest;
 import com.schedow.schedule_service.dto.CreateWeeklyShiftAssignmentRequest;
 import com.schedow.schedule_service.dto.ShiftRecommendationRequest;
 import com.schedow.schedule_service.dto.ShiftRecommendationResponse;
+import com.schedow.schedule_service.dto.WeekScheduleResponse;
 import com.schedow.schedule_service.entity.RecurringShiftAssignment;
 import com.schedow.schedule_service.entity.Shift;
 import com.schedow.schedule_service.entity.Unavailability;
@@ -88,7 +99,39 @@ return scheduleService
 
 }
 
+@PostMapping("/assign-worker")
+public AssignWorkerResponse assignWorker(
+        @RequestBody AssignWorkerRequest request
+) {
 
+    return scheduleService.assignWorker(request);
+
+}
+@GetMapping("/week/{weekStartDate}")
+public List<WeekScheduleResponse> getWeekSchedule(
+        @PathVariable LocalDate weekStartDate
+) {
+
+    return scheduleService.getWeekSchedule(
+            weekStartDate
+    );
+}
+
+@GetMapping("/workers/{userId}")
+public List<WorkerScheduleResponse> getWorkerSchedule(
+        @PathVariable Long userId
+) {
+
+    return scheduleService.getWorkerSchedule(
+            userId
+    );
+}
+
+@GetMapping("/dashboard")
+public DashboardResponse getDashboard() {
+
+    return scheduleService.getDashboard();
+}
 
 
 @GetMapping("/recurring-assignments/user/{userId}")

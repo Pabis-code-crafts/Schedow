@@ -114,3 +114,5 @@ User Unavailability
 GET http://localhost:8084/api/v1/schedules/unavailability/user/2
 Recurring Assignments
 GET http://localhost:8084/api/v1/schedules/recurring-assignments/user/4
+
+$env:GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
