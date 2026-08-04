@@ -5,7 +5,10 @@ import org.springframework.stereotype.Service;
 
 import com.schedow.ai_services.dto.ChatRequest;
 import com.schedow.ai_services.dto.ChatResponse;
+import com.schedow.ai_services.tool.DashboardTool;
 import com.schedow.ai_services.tool.RecommendationTool;
+import com.schedow.ai_services.tool.WeekScheduleTool;
+import com.schedow.ai_services.tool.WorkerScheduleTool;
 
 @Service
 public class ChatService {
@@ -13,51 +16,66 @@ public class ChatService {
     private final ChatClient chatClient;
 
     private final RecommendationTool recommendationTool;
+    private final WeekScheduleTool weekScheduleTool;
+    private final WorkerScheduleTool workerScheduleTool;
+    private final DashboardTool dashboardTool;
 
-public ChatService(
-        ChatClient.Builder builder,
-        RecommendationTool recommendationTool
-) {
+    public ChatService(
+            ChatClient.Builder builder,
+            RecommendationTool recommendationTool,
+            WeekScheduleTool weekScheduleTool,
+            WorkerScheduleTool workerScheduleTool,
+            DashboardTool dashboardTool
+    ) {
 
-    this.recommendationTool = recommendationTool;
+        this.chatClient = builder.build();
 
-    this.chatClient = builder.build();
+        this.recommendationTool = recommendationTool;
+        this.weekScheduleTool = weekScheduleTool;
+        this.workerScheduleTool = workerScheduleTool;
+        this.dashboardTool = dashboardTool;
+    }
 
-}
-public ChatResponse chat(
-        ChatRequest request
-) {
+    public ChatResponse chat(ChatRequest request) {
 
-    String answer =
+        String answer = chatClient.prompt()
 
-            chatClient.prompt()
-
-                    .system("""
+                .system("""
 You are Schedow AI.
 
-Never answer scheduling questions yourself.
+You are an AI scheduling assistant.
 
-If the user asks anything about workers,
-shifts,
-recommendations,
-availability,
-or schedules,
+Never make up scheduling information.
 
-ALWAYS call the appropriate tool first.
+Always use the available tools whenever the user asks about:
+
+- worker recommendations
+- schedules
+- dashboard summaries
+- worker schedules
+- staffing
+- shifts
+
+Use the tool first, then explain the result naturally.
 """)
 
-                    .user(request.getMessage())
+                .user(request.getMessage())
 
-                    .tools(recommendationTool)
+                .tools(
+                        recommendationTool,
+                        weekScheduleTool,
+                        workerScheduleTool,
+                        dashboardTool
+                )
 
-                    .call()
+                .call()
 
-                    .content();
+                .content();
 
-    ChatResponse response = new ChatResponse();
+        ChatResponse response = new ChatResponse();
+        response.setResponse(answer);
 
-    response.setResponse(answer);
+        return response;
+    }
 
-    return response;
-}
 }
