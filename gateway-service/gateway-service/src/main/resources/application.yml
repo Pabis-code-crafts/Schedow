@@ -5,15 +5,46 @@ spring:
   application:
     name: gateway-service
 
+
   cloud:
     gateway:
       server:
         webflux:
+
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOrigins:
+                  - "http://localhost:5173"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - PATCH
+                  - DELETE
+                  - OPTIONS
+                allowedHeaders: "*"
+
           routes:
+
             - id: user-service
               uri: http://localhost:8082
               predicates:
                 - Path=/api/v1/users/**
+              # filters:
+              #   - JwtAuthenticationFilter
+
+            - id: schedule-service
+              uri: http://localhost:8084
+              predicates:
+                - Path=/api/v1/schedules/**
+              filters:
+                - JwtAuthenticationFilter
+
+            - id: ai-service
+              uri: http://localhost:8086
+              predicates:
+                - Path=/api/v1/chat/**
               filters:
                 - JwtAuthenticationFilter
 
@@ -22,3 +53,8 @@ management:
     web:
       exposure:
         include: health,info
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.web: DEBUG

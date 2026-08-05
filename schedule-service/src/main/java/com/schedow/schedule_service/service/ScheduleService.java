@@ -5,12 +5,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import com.schedow.schedule_service.dto.DashboardResponse;
-import com.schedow.schedule_service.dto.WeekScheduleResponse;
-import com.schedow.schedule_service.dto.UserResponse;
-import com.schedow.schedule_service.dto.WorkerScheduleResponse;
-import com.schedow.schedule_service.entity.Unavailability;
-import com.schedow.schedule_service.entity.WeeklyShiftAssignment;
 import org.springframework.stereotype.Service;
 
 import com.schedow.schedule_service.dto.AssignWorkerRequest;
@@ -19,10 +13,16 @@ import com.schedow.schedule_service.dto.CreateRecurringShiftAssignmentRequest;
 import com.schedow.schedule_service.dto.CreateShiftRequest;
 import com.schedow.schedule_service.dto.CreateUnavailabilityRequest;
 import com.schedow.schedule_service.dto.CreateWeeklyShiftAssignmentRequest;
+import com.schedow.schedule_service.dto.DashboardResponse;
 import com.schedow.schedule_service.dto.ShiftRecommendationRequest;
 import com.schedow.schedule_service.dto.ShiftRecommendationResponse;
+import com.schedow.schedule_service.dto.UserResponse;
+import com.schedow.schedule_service.dto.WeekScheduleResponse;
+import com.schedow.schedule_service.dto.WorkerScheduleResponse;
 import com.schedow.schedule_service.entity.RecurringShiftAssignment;
 import com.schedow.schedule_service.entity.Shift;
+import com.schedow.schedule_service.entity.Unavailability;
+import com.schedow.schedule_service.entity.WeeklyShiftAssignment;
 import com.schedow.schedule_service.repository.RecurringShiftAssignmentRepository;
 import com.schedow.schedule_service.repository.ShiftRepository;
 import com.schedow.schedule_service.repository.UnavailabilityRepository;
@@ -204,7 +204,12 @@ public List<Shift> getAllShifts() {
 public WeeklyShiftAssignment createAssignment(
         CreateWeeklyShiftAssignmentRequest request
 ) {
-
+System.out.println("===== Incoming Request =====");
+System.out.println("Week: " + request.getWeekStartDate());
+System.out.println("Day: " + request.getDayOfWeek());
+System.out.println("User: " + request.getAssignedUserId());
+System.out.println("Shift: " + request.getShiftId());
+System.out.println("============================");
     Shift shift = shiftRepository.findById(
             request.getShiftId()
     ).orElseThrow(() ->
@@ -227,11 +232,18 @@ public WeeklyShiftAssignment createAssignment(
             request.getAssignedUserId()
     );
 
-    assignment.setShiftTemplate(shift);
+assignment.setAssignedUserId(request.getAssignedUserId());
+assignment.setShiftTemplate(shift);
 
-    return assignmentRepository.save(
-            assignment
-    );
+WeeklyShiftAssignment saved = assignmentRepository.save(assignment);
+
+System.out.println("Saved assignment:");
+System.out.println("ID: " + saved.getId());
+System.out.println("Week: " + saved.getWeekStartDate());
+System.out.println("Day: " + saved.getDayOfWeek());
+System.out.println("User: " + saved.getAssignedUserId());
+
+return saved;
 }
 
 public List<WeeklyShiftAssignment>
