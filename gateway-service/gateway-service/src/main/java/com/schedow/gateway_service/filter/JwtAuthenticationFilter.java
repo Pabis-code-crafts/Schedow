@@ -27,8 +27,13 @@ public GatewayFilter apply(Config config) {
 .getURI()
 .getPath();
 
-if (path.contains("/login") || path.contains("/register")) {
-return chain.filter(exchange);
+if (path.contains("/login")
+        || path.contains("/register")
+        || path.contains("/test")
+        || path.startsWith("/api/v1/schedules/")
+        || path.startsWith("/api/v1/chat/")) {
+
+    return chain.filter(exchange);
 }
 
 
