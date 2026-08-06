@@ -101,6 +101,28 @@ export type CreateAssignmentPayload = {
   shiftId: number;
 };
 
+export type ShiftRecommendationPayload = {
+  shiftId: number;
+  dayOfWeek: string;
+  date: string;
+};
+
+export type ShiftRecommendation = {
+  userId: number | null;
+  workerName: string;
+  fairnessScore: number | null;
+  recurringWorker: boolean;
+  reason: string | null;
+};
+
+export type ShiftRecommendationDto = {
+  userId?: string | number;
+  workerName?: string;
+  fairnessScore?: number;
+  recurringWorker?: boolean;
+  reason?: string;
+};
+
 export type ListResponse<TItem> =
   | TItem[]
   | {

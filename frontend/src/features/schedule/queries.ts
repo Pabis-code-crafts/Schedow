@@ -3,12 +3,13 @@ import { useMemo } from 'react';
 
 import {
   createScheduleAssignment,
+  getShiftRecommendations,
   getShiftTemplates,
   getWeeklyScheduleAssignments,
   getWorkers,
 } from '@/features/schedule/api';
 import { mapWeeklySchedule } from '@/features/schedule/scheduleMapper';
-import type { CreateAssignmentPayload } from '@/features/schedule/types';
+import type { CreateAssignmentPayload, ShiftRecommendationPayload } from '@/features/schedule/types';
 
 export const scheduleQueryKeys = {
   all: ['schedule'] as const,
@@ -80,5 +81,11 @@ export function useCreateScheduleAssignment(weekStartDate: string) {
         type: 'active',
       });
     },
+  });
+}
+
+export function useShiftRecommendations() {
+  return useMutation({
+    mutationFn: (payload: ShiftRecommendationPayload) => getShiftRecommendations(payload),
   });
 }
