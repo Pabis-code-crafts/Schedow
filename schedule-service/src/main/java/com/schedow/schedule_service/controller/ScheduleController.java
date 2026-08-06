@@ -9,29 +9,22 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import java.time.LocalDate;
-import java.util.List;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-
-import com.schedow.schedule_service.dto.DashboardResponse;
-import com.schedow.schedule_service.dto.WeekScheduleResponse;
-import com.schedow.schedule_service.dto.WorkerScheduleResponse;
-import com.schedow.schedule_service.dto.AssignWorkerRequest;
-import com.schedow.schedule_service.dto.AssignWorkerResponse;
 import com.schedow.schedule_service.dto.CreateRecurringShiftAssignmentRequest;
 import com.schedow.schedule_service.dto.CreateShiftRequest;
 import com.schedow.schedule_service.dto.CreateUnavailabilityRequest;
 import com.schedow.schedule_service.dto.CreateWeeklyShiftAssignmentRequest;
+import com.schedow.schedule_service.dto.DashboardResponse;
 import com.schedow.schedule_service.dto.ShiftRecommendationRequest;
 import com.schedow.schedule_service.dto.ShiftRecommendationResponse;
 import com.schedow.schedule_service.dto.WeekScheduleResponse;
+import com.schedow.schedule_service.dto.WorkerScheduleResponse;
 import com.schedow.schedule_service.entity.RecurringShiftAssignment;
 import com.schedow.schedule_service.entity.Shift;
 import com.schedow.schedule_service.entity.Unavailability;
 import com.schedow.schedule_service.entity.WeeklyShiftAssignment;
 import com.schedow.schedule_service.repository.RecurringShiftAssignmentRepository;
+import com.schedow.schedule_service.service.RecommendationService;
 import com.schedow.schedule_service.service.ScheduleService;
 
 @RestController
@@ -40,10 +33,16 @@ public class ScheduleController {
 
 private final ScheduleService scheduleService;
 private final RecurringShiftAssignmentRepository recurringAssignmentRepository;
+private final RecommendationService recommendationService;
 
-public ScheduleController(ScheduleService scheduleService, RecurringShiftAssignmentRepository recurringAssignmentRepository) {
+public ScheduleController(
+        ScheduleService scheduleService,
+        RecurringShiftAssignmentRepository recurringAssignmentRepository,
+        RecommendationService recommendationService
+) {
     this.scheduleService = scheduleService;
     this.recurringAssignmentRepository = recurringAssignmentRepository;
+    this.recommendationService = recommendationService;
 }
 
 @PostMapping("/shifts")
@@ -99,14 +98,14 @@ return scheduleService
 
 }
 
-@PostMapping("/assign-worker")
-public AssignWorkerResponse assignWorker(
-        @RequestBody AssignWorkerRequest request
-) {
+// @PostMapping("/assign-worker")
+// public AssignWorkerResponse assignWorker(
+//         @RequestBody AssignWorkerRequest request
+// ) {
 
-    return scheduleService.assignWorker(request);
+//     return scheduleService.assignWorker(request);
 
-}
+// }
 @GetMapping("/week/{weekStartDate}")
 public List<WeekScheduleResponse> getWeekSchedule(
         @PathVariable LocalDate weekStartDate
@@ -167,15 +166,10 @@ return scheduleService.getAllShifts();
 
 
 @PostMapping("/recommendations")
-public List<ShiftRecommendationResponse>
-getRecommendations(
-@RequestBody
-ShiftRecommendationRequest request
+public List<ShiftRecommendationResponse> getRecommendations(
+        @RequestBody ShiftRecommendationRequest request
 ) {
-
-return scheduleService
-        .getRecommendations(request);
-
+    return recommendationService.getRecommendations(request);
 }
 
 

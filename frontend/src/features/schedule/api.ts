@@ -3,6 +3,9 @@ import type {
   ListResponse,
   CreateAssignmentPayload,
   ScheduleAssignmentDto,
+  ShiftRecommendation,
+  ShiftRecommendationDto,
+  ShiftRecommendationPayload,
   ShiftTemplateDto,
   WeeklyAssignmentsResponse,
   WorkerDto,
@@ -41,4 +44,30 @@ export async function createScheduleAssignment(
   );
 
   return response.data;
+}
+
+export async function getShiftRecommendations(
+  payload: ShiftRecommendationPayload,
+): Promise<ShiftRecommendation[]> {
+  const response = await httpClient.post<ShiftRecommendationDto[]>(
+    '/api/v1/schedules/recommendations',
+    payload,
+  );
+
+  return response.data.map(mapShiftRecommendation);
+}
+
+function mapShiftRecommendation(recommendation: ShiftRecommendationDto): ShiftRecommendation {
+  const userId =
+    recommendation.userId !== undefined && Number.isFinite(Number(recommendation.userId))
+      ? Number(recommendation.userId)
+      : null;
+
+  return {
+    userId,
+    workerName: recommendation.workerName ?? 'Worker name missing',
+    fairnessScore: recommendation.fairnessScore ?? null,
+    recurringWorker: recommendation.recurringWorker ?? false,
+    reason: recommendation.reason ?? null,
+  };
 }

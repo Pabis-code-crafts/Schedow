@@ -16,6 +16,7 @@ import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
+import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -46,14 +47,17 @@ import {
 import {
   useCreateScheduleAssignment,
   useScheduleWorkspace,
+  useShiftRecommendations,
 } from '@/features/schedule/queries';
 import type {
   ScheduledShift,
   ScheduleWorker,
+  ShiftRecommendation,
   ShiftTemplate,
   WeeklySchedule,
   WeekDay,
 } from '@/features/schedule/types';
+import { getApiErrorMessage } from '@/services/api';
 
 type Selection =
   | { type: 'none' }
@@ -67,18 +71,17 @@ type AssignmentDraft = {
   template: ShiftTemplate;
 };
 
-type CellActionContext =
-  | {
-      type: 'empty';
-      day: WeekDay;
-      template: ShiftTemplate;
-    }
-  | {
-      type: 'assigned';
-      day: WeekDay;
-      shift: ScheduledShift;
-      template: ShiftTemplate;
-    };
+type RecommendationDraft = {
+  day: WeekDay;
+  template: ShiftTemplate;
+};
+
+type CellActionContext = {
+  type: 'assigned';
+  day: WeekDay;
+  shift: ScheduledShift;
+  template: ShiftTemplate;
+};
 
 type CellActionMenuState = {
   anchorEl: HTMLElement;
@@ -96,10 +99,15 @@ export function SchedulePage() {
   const [selection, setSelection] = useState<Selection>({ type: 'none' });
   const [aiPanelOpen, setAiPanelOpen] = useState(true);
   const [assignmentDraft, setAssignmentDraft] = useState<AssignmentDraft | null>(null);
+  const [recommendationDraft, setRecommendationDraft] = useState<RecommendationDraft | null>(null);
+  const [recommendationAssigningUserId, setRecommendationAssigningUserId] = useState<number | null>(
+    null,
+  );
   const [cellActionMenu, setCellActionMenu] = useState<CellActionMenuState>(null);
   const { data: schedule, error, isError, isFetching, isLoading, refetch } =
     useScheduleWorkspace(weekStartDate);
   const createAssignmentMutation = useCreateScheduleAssignment(weekStartDate);
+  const recommendationsMutation = useShiftRecommendations();
   const isScheduleLoading = isLoading || isFetching;
 
   const selectedShift =
@@ -138,39 +146,41 @@ export function SchedulePage() {
     setSelection((current) => reconcileSelection(current, schedule));
   }, [schedule]);
 
-  const handleShiftClick = (event: MouseEvent, shift: ScheduledShift) => {
+  const handleShiftClick = (_event: MouseEvent, shift: ScheduledShift) => {
     setAiPanelOpen(true);
-
-    if (event.metaKey || event.ctrlKey) {
-      setSelection((current) => {
-        const currentIds =
-          current.type === 'multi'
-            ? current.shiftIds
-            : current.type === 'shift'
-              ? [current.shiftId]
-              : [];
-        const nextIds = currentIds.includes(shift.id)
-          ? currentIds.filter((id) => id !== shift.id)
-          : [...currentIds, shift.id];
-
-        if (nextIds.length === 0) {
-          return { type: 'none' };
-        }
-
-        if (nextIds.length === 1) {
-          return { type: 'shift', shiftId: nextIds[0] };
-        }
-
-        return { type: 'multi', shiftIds: nextIds };
-      });
-      return;
-    }
 
     setSelection((current) =>
       current.type === 'shift' && current.shiftId === shift.id
         ? { type: 'none' }
         : { type: 'shift', shiftId: shift.id },
     );
+  };
+
+  const openRecommendations = (day: WeekDay, template: ShiftTemplate) => {
+    recommendationsMutation.reset();
+    createAssignmentMutation.reset();
+    setRecommendationDraft({ day, template });
+
+    if (!isNumericId(template.id)) {
+      return;
+    }
+
+    recommendationsMutation.mutate({
+      date: day.id,
+      dayOfWeek: toJavaDayOfWeek(day.fullLabel),
+      shiftId: toNumericId(template.id),
+    });
+  };
+
+  const createAssignment = async (day: WeekDay, template: ShiftTemplate, workerId: number) => {
+    createAssignmentMutation.reset();
+
+    await createAssignmentMutation.mutateAsync({
+      weekStartDate,
+      dayOfWeek: toJavaDayOfWeek(day.fullLabel),
+      assignedUserId: workerId,
+      shiftId: toNumericId(template.id),
+    });
   };
 
   return (
@@ -295,6 +305,11 @@ export function SchedulePage() {
                     });
                     setAiPanelOpen(true);
                   }}
+                  onAssignEmptyCell={(day, template) => {
+                    createAssignmentMutation.reset();
+                    setAssignmentDraft({ day, template });
+                  }}
+                  onRecommendEmptyCell={openRecommendations}
                   onOpenCellActions={(anchorEl, context) => setCellActionMenu({ anchorEl, context })}
                 />
               </Stack>
@@ -367,16 +382,12 @@ export function SchedulePage() {
 
             createAssignmentMutation.reset();
 
-            const assignedUserId = toNumericId(workerId);
-            const shiftId = toNumericId(assignmentDraft.template.id);
-
             try {
-              await createAssignmentMutation.mutateAsync({
-                weekStartDate,
-                dayOfWeek: toJavaDayOfWeek(assignmentDraft.day.fullLabel),
-                assignedUserId,
-                shiftId,
-              });
+              await createAssignment(
+                assignmentDraft.day,
+                assignmentDraft.template,
+                toNumericId(workerId),
+              );
               setAssignmentDraft(null);
             } catch {
               // React Query stores the API error; the dialog renders it via submitError.
@@ -385,24 +396,52 @@ export function SchedulePage() {
         />
       ) : null}
 
+      <RecommendationDialog
+        assignError={getMutationErrorMessage(createAssignmentMutation.error)}
+        assigningUserId={recommendationAssigningUserId}
+        draft={recommendationDraft}
+        isAssigning={createAssignmentMutation.isPending}
+        isLoading={recommendationsMutation.isPending}
+        recommendations={recommendationsMutation.data ?? []}
+        recommendationError={getRecommendationErrorMessage(recommendationsMutation.error)}
+        onAssignRecommendation={async (recommendation) => {
+          if (!recommendationDraft || recommendation.userId === null) {
+            return;
+          }
+
+          setRecommendationAssigningUserId(recommendation.userId);
+
+          try {
+            await createAssignment(
+              recommendationDraft.day,
+              recommendationDraft.template,
+              recommendation.userId,
+            );
+            setRecommendationDraft(null);
+            recommendationsMutation.reset();
+          } catch {
+            // React Query stores the API error; the dialog renders it via assignError.
+          } finally {
+            setRecommendationAssigningUserId(null);
+          }
+        }}
+        onClose={() => {
+          if (!recommendationsMutation.isPending && !createAssignmentMutation.isPending) {
+            setRecommendationDraft(null);
+            setRecommendationAssigningUserId(null);
+            recommendationsMutation.reset();
+            createAssignmentMutation.reset();
+          }
+        }}
+      />
+
       <CellActionMenu
         menuState={cellActionMenu}
         onClose={() => setCellActionMenu(null)}
         onAskAi={(context) => {
           setCellActionMenu(null);
           setAiPanelOpen(true);
-          if (context.type === 'empty') {
-            setSelection({
-              type: 'shift',
-              shiftId: getEmptyCellSelectionId(context.day.id, context.template.id),
-            });
-          } else {
-            setSelection({ type: 'shift', shiftId: context.shift.id });
-          }
-        }}
-        onAssignWorker={(day, template) => {
-          setCellActionMenu(null);
-          setAssignmentDraft({ day, template });
+          setSelection({ type: 'shift', shiftId: context.shift.id });
         }}
       />
     </>
@@ -511,14 +550,18 @@ function ScheduleWeekToolbar({
 type ScheduleGridProps = {
   schedule: WeeklySchedule;
   selection: Selection;
+  onAssignEmptyCell: (day: WeekDay, template: ShiftTemplate) => void;
   onSelectDay: (dayId: string) => void;
   onSelectShift: (event: MouseEvent, shift: ScheduledShift) => void;
   onSelectEmptyCell: (day: WeekDay, template: ShiftTemplate) => void;
+  onRecommendEmptyCell: (day: WeekDay, template: ShiftTemplate) => void;
   onOpenCellActions: (anchorEl: HTMLElement, context: CellActionContext) => void;
 };
 
 function ScheduleGrid({
+  onAssignEmptyCell,
   onOpenCellActions,
+  onRecommendEmptyCell,
   onSelectDay,
   onSelectEmptyCell,
   onSelectShift,
@@ -551,7 +594,9 @@ function ScheduleGrid({
         {schedule.shiftTemplates.map((template) => (
           <ScheduleRow
             key={template.id}
+            onAssignEmptyCell={onAssignEmptyCell}
             onOpenCellActions={onOpenCellActions}
+            onRecommendEmptyCell={onRecommendEmptyCell}
             onSelectEmptyCell={onSelectEmptyCell}
             onSelectShift={onSelectShift}
             schedule={schedule}
@@ -568,13 +613,17 @@ type ScheduleRowProps = {
   schedule: WeeklySchedule;
   template: ShiftTemplate;
   selection: Selection;
+  onAssignEmptyCell: (day: WeekDay, template: ShiftTemplate) => void;
   onSelectShift: (event: MouseEvent, shift: ScheduledShift) => void;
   onSelectEmptyCell: (day: WeekDay, template: ShiftTemplate) => void;
+  onRecommendEmptyCell: (day: WeekDay, template: ShiftTemplate) => void;
   onOpenCellActions: (anchorEl: HTMLElement, context: CellActionContext) => void;
 };
 
 function ScheduleRow({
+  onAssignEmptyCell,
   onOpenCellActions,
+  onRecommendEmptyCell,
   onSelectEmptyCell,
   onSelectShift,
   schedule,
@@ -621,17 +670,12 @@ function ScheduleRow({
         ) : (
           <EmptyShiftCell
             day={day}
-            isSelected={isShiftSelected(
-              schedule,
-              selection,
-              getEmptyCellSelectionId(day.id, template.id),
-            )}
+            isSelected={isEmptyCellSelected(selection, day.id, template.id)}
             key={`${day.id}-${template.id}`}
             template={template}
+            onAssign={() => onAssignEmptyCell(day, template)}
             onClick={() => onSelectEmptyCell(day, template)}
-            onOpenActions={(anchorEl) =>
-              onOpenCellActions(anchorEl, { type: 'empty', day, template })
-            }
+            onRecommend={() => onRecommendEmptyCell(day, template)}
           />
         );
       })}
@@ -775,15 +819,17 @@ type EmptyShiftCellProps = {
   day: WeekDay;
   isSelected: boolean;
   template: ShiftTemplate;
+  onAssign: () => void;
   onClick: () => void;
-  onOpenActions: (anchorEl: HTMLElement) => void;
+  onRecommend: () => void;
 };
 
 function EmptyShiftCell({
   day,
   isSelected,
+  onAssign,
   onClick,
-  onOpenActions,
+  onRecommend,
   template,
 }: EmptyShiftCellProps) {
   return (
@@ -811,12 +857,6 @@ function EmptyShiftCell({
           outline: isSelected ? '3px solid' : '0 solid transparent',
           outlineColor: (theme) => alpha(theme.palette.primary.main, 0.18),
           p: 2,
-          position: 'relative',
-          '& .cell-action-button': {
-            opacity: isSelected ? 1 : 0,
-            pointerEvents: isSelected ? 'auto' : 'none',
-            transform: isSelected ? 'scale(1)' : 'scale(0.94)',
-          },
           transition: (theme) =>
             theme.transitions.create([
               'background-color',
@@ -830,20 +870,49 @@ function EmptyShiftCell({
             borderColor: 'primary.main',
             boxShadow: 2,
             transform: 'translateY(-2px)',
-            '& .cell-action-button': {
-              opacity: 1,
-              pointerEvents: 'auto',
-              transform: 'scale(1)',
-            },
           },
         }}
       >
-        <CellActionButton onOpenActions={onOpenActions} />
-        <Stack alignItems="center" spacing={1} sx={{ width: '100%' }}>
-          <AddRoundedIcon color="secondary" />
+        <Stack alignItems="center" justifyContent="center" spacing={1.25} sx={{ width: '100%' }}>
+          <Box>
+            <Typography noWrap variant="subtitle2">
+              {template.name}
+            </Typography>
+            <Typography color="text.secondary" display="block" mt={0.25} variant="caption">
+              {formatShiftTime(template)}
+            </Typography>
+          </Box>
           <Typography color="text.secondary" variant="caption">
-            Assign worker
+            Unassigned
           </Typography>
+          {isSelected ? (
+            <Stack spacing={1} sx={{ mt: 0.5, width: '100%' }}>
+              <Button
+                fullWidth
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onAssign();
+                }}
+                size="small"
+                startIcon={<AddRoundedIcon />}
+                variant="contained"
+              >
+                Assign Shift
+              </Button>
+              <Button
+                fullWidth
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRecommend();
+                }}
+                size="small"
+                startIcon={<AutoAwesomeRoundedIcon />}
+                variant="outlined"
+              >
+                Recommend Shift
+              </Button>
+            </Stack>
+          ) : null}
         </Stack>
       </Box>
     </ButtonBase>
@@ -893,7 +962,6 @@ function CellActionButton({ onOpenActions }: CellActionButtonProps) {
 
 type CellActionMenuProps = {
   menuState: CellActionMenuState;
-  onAssignWorker: (day: WeekDay, template: ShiftTemplate) => void;
   onAskAi: (context: CellActionContext) => void;
   onClose: () => void;
 };
@@ -901,7 +969,6 @@ type CellActionMenuProps = {
 function CellActionMenu({
   menuState,
   onAskAi,
-  onAssignWorker,
   onClose,
 }: CellActionMenuProps) {
   const context = menuState?.context;
@@ -927,18 +994,19 @@ function CellActionMenu({
         },
       }}
     >
-      {context?.type === 'empty' ? (
-        <MenuItem onClick={() => onAssignWorker(context.day, context.template)}>
-          Assign Worker
-        </MenuItem>
-      ) : null}
       {context?.type === 'assigned' ? (
         <MenuItem onClick={onClose}>Edit Assignment</MenuItem>
       ) : null}
       {context?.type === 'assigned' ? (
+        <MenuItem onClick={onClose}>Reassign Worker</MenuItem>
+      ) : null}
+      {context?.type === 'assigned' ? (
         <MenuItem onClick={onClose}>Remove Assignment</MenuItem>
       ) : null}
-      {context ? <MenuItem onClick={() => onAskAi(context)}>Ask Schedow AI</MenuItem> : null}
+      {context ? <MenuItem onClick={() => onAskAi(context)}>Ask AI about this assignment</MenuItem> : null}
+      {context?.type === 'assigned' ? (
+        <MenuItem onClick={onClose}>View Details</MenuItem>
+      ) : null}
     </Menu>
   );
 }
@@ -1105,6 +1173,163 @@ function AssignWorkerDialog({
           variant="contained"
         >
           {isSubmitting ? 'Creating...' : 'Create assignment'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+type RecommendationDialogProps = {
+  assignError?: string;
+  assigningUserId: number | null;
+  draft: RecommendationDraft | null;
+  isAssigning: boolean;
+  isLoading: boolean;
+  recommendations: ShiftRecommendation[];
+  recommendationError?: string;
+  onAssignRecommendation: (recommendation: ShiftRecommendation) => Promise<void>;
+  onClose: () => void;
+};
+
+function RecommendationDialog({
+  assignError,
+  assigningUserId,
+  draft,
+  isAssigning,
+  isLoading,
+  onAssignRecommendation,
+  onClose,
+  recommendationError,
+  recommendations,
+}: RecommendationDialogProps) {
+  const isBusy = isLoading || isAssigning;
+
+  return (
+    <Dialog fullWidth maxWidth="sm" onClose={isBusy ? undefined : onClose} open={Boolean(draft)}>
+      <DialogTitle sx={{ pb: 1 }}>
+        <Stack direction="row" justifyContent="space-between" spacing={2}>
+          <Box>
+            <Typography color="text.secondary" variant="caption">
+              Schedow AI
+            </Typography>
+            <Typography variant="h4">Recommended Workers</Typography>
+          </Box>
+          <IconButton aria-label="Close recommendations" disabled={isBusy} onClick={onClose}>
+            <CloseRoundedIcon />
+          </IconButton>
+        </Stack>
+      </DialogTitle>
+      <DialogContent sx={{ pt: 2 }}>
+        {draft ? (
+          <Stack spacing={3}>
+            <Box
+              sx={{
+                bgcolor: (theme) => alpha(theme.palette.grey[100], 0.7),
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 3,
+                p: 2,
+              }}
+            >
+              <Stack spacing={1.5}>
+                <Stack direction="row" justifyContent="space-between" spacing={2}>
+                  <Typography color="text.secondary" variant="body2">
+                    Date
+                  </Typography>
+                  <Typography variant="subtitle2">
+                    {draft.day.fullLabel}, {draft.day.date}
+                  </Typography>
+                </Stack>
+                <Stack direction="row" justifyContent="space-between" spacing={2}>
+                  <Typography color="text.secondary" variant="body2">
+                    Shift
+                  </Typography>
+                  <Typography variant="subtitle2">{draft.template.name}</Typography>
+                </Stack>
+                <Stack direction="row" justifyContent="space-between" spacing={2}>
+                  <Typography color="text.secondary" variant="body2">
+                    Time
+                  </Typography>
+                  <Typography variant="subtitle2">{formatShiftTime(draft.template)}</Typography>
+                </Stack>
+              </Stack>
+            </Box>
+
+            {!isNumericId(draft.template.id) ? (
+              <Alert severity="error">The selected shift is missing a numeric backend id.</Alert>
+            ) : null}
+
+            {recommendationError ? <Alert severity="error">{recommendationError}</Alert> : null}
+            {assignError ? <Alert severity="error">{assignError}</Alert> : null}
+
+            {isLoading ? (
+              <Stack spacing={1.5}>
+                {Array.from({ length: 3 }, (_, index) => (
+                  <Skeleton height={72} key={index} sx={{ borderRadius: 3 }} variant="rounded" />
+                ))}
+              </Stack>
+            ) : recommendations.length > 0 ? (
+              <Stack spacing={1.5}>
+                {recommendations.map((recommendation) => (
+                  <Box
+                    key={`${recommendation.userId ?? 'missing'}-${recommendation.workerName}`}
+                    sx={{
+                      border: 1,
+                      borderColor: 'divider',
+                      borderRadius: 3,
+                      p: 2,
+                    }}
+                  >
+                    <Stack
+                      alignItems={{ xs: 'stretch', sm: 'center' }}
+                      direction={{ xs: 'column', sm: 'row' }}
+                      justifyContent="space-between"
+                      spacing={2}
+                    >
+                      <Stack spacing={0.5}>
+                        <Typography variant="subtitle2">{recommendation.workerName}</Typography>
+                        {recommendation.reason ? (
+                          <Typography color="text.secondary" variant="body2">
+                            {recommendation.reason}
+                          </Typography>
+                        ) : null}
+                        <Typography color="text.secondary" variant="caption">
+                          {formatRecommendationMeta(recommendation)}
+                        </Typography>
+                      </Stack>
+                      <Button
+                        disabled={
+                          isAssigning ||
+                          recommendation.userId === null ||
+                          !isNumericId(draft.template.id)
+                        }
+                        onClick={() => {
+                          void onAssignRecommendation(recommendation);
+                        }}
+                        startIcon={
+                          assigningUserId === recommendation.userId ? (
+                            <CircularProgress color="inherit" size={16} />
+                          ) : (
+                            <AddRoundedIcon />
+                          )
+                        }
+                        variant="contained"
+                      >
+                        Assign
+                      </Button>
+                    </Stack>
+                  </Box>
+                ))}
+              </Stack>
+            ) : recommendationError ? null : (
+              <Alert severity="info">No recommendations were returned for this shift.</Alert>
+            )}
+          </Stack>
+        ) : null}
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 3 }}>
+        <Button disabled={isBusy} onClick={onClose} variant="text">
+          Close
         </Button>
       </DialogActions>
     </Dialog>
@@ -1383,6 +1608,10 @@ function isShiftSelected(schedule: WeeklySchedule, selection: Selection, shiftId
   return selection.type === 'week';
 }
 
+function isEmptyCellSelected(selection: Selection, dayId: string, templateId: string): boolean {
+  return selection.type === 'shift' && selection.shiftId === getEmptyCellSelectionId(dayId, templateId);
+}
+
 function getShift(
   schedule: WeeklySchedule,
   dayId: string,
@@ -1409,6 +1638,16 @@ function getSelectionSummary(selection: Selection, schedule?: WeeklySchedule): s
   }
 
   const shift = schedule.shifts.find((item) => item.id === selection.shiftId);
+
+  if (!shift) {
+    const emptyCell = parseEmptyCellSelectionId(selection.shiftId);
+
+    if (emptyCell) {
+      return `${getDay(schedule, emptyCell.dayId)?.fullLabel ?? 'Day'} - ${
+        getTemplate(schedule, emptyCell.templateId)?.name ?? 'Shift'
+      }`;
+    }
+  }
 
   if (!shift) {
     return 'Shift selected';
@@ -1504,6 +1743,20 @@ function getAiContextLines(
     ];
   }
 
+  if (selection.type === 'shift') {
+    const emptyCell = parseEmptyCellSelectionId(selection.shiftId);
+
+    if (emptyCell) {
+      const template = getTemplate(schedule, emptyCell.templateId);
+
+      return [
+        getDay(schedule, emptyCell.dayId)?.fullLabel ?? 'Selected day',
+        `${template?.name ?? 'Missing shift name'} - ${template ? formatShiftTime(template) : 'Missing shift time'}`,
+        'Unassigned',
+      ];
+    }
+  }
+
   return ['Select a shift, day, or week to focus recommendations.'];
 }
 
@@ -1519,8 +1772,32 @@ function getEmptyCellSelectionId(dayId: string, templateId: string): string {
   return `empty:${dayId}:${templateId}`;
 }
 
+function parseEmptyCellSelectionId(shiftId: string): { dayId: string; templateId: string } | null {
+  const [, dayId, templateId] = shiftId.match(/^empty:(.+):(.+)$/) ?? [];
+
+  return dayId && templateId ? { dayId, templateId } : null;
+}
+
 function formatShiftTime(template: ShiftTemplate): string {
   return `${formatTimeField(template.startTime)} - ${formatTimeField(template.endTime)}`;
+}
+
+function formatRecommendationMeta(recommendation: ShiftRecommendation): string {
+  const details = [];
+
+  if (recommendation.fairnessScore !== null) {
+    details.push(`Fairness ${recommendation.fairnessScore}`);
+  }
+
+  if (recommendation.recurringWorker) {
+    details.push('Recurring worker');
+  }
+
+  if (recommendation.userId === null) {
+    details.push('User id missing');
+  }
+
+  return details.length > 0 ? details.join(' · ') : 'Recommendation';
 }
 
 function formatTimeField(value: string | null): string {
@@ -1561,9 +1838,19 @@ function reconcileSelection(selection: Selection, schedule: WeeklySchedule): Sel
   }
 
   if (selection.type === 'shift') {
-    return schedule.shifts.some((shift) => shift.id === selection.shiftId)
-      ? selection
-      : { type: 'none' };
+    if (schedule.shifts.some((shift) => shift.id === selection.shiftId)) {
+      return selection;
+    }
+
+    const emptyCell = parseEmptyCellSelectionId(selection.shiftId);
+
+    if (emptyCell) {
+      const assignedShift = getShift(schedule, emptyCell.dayId, emptyCell.templateId);
+
+      return assignedShift ? { type: 'shift', shiftId: assignedShift.id } : selection;
+    }
+
+    return { type: 'none' };
   }
 
   if (selection.type === 'multi') {
@@ -1622,11 +1909,7 @@ function toDateId(date: Date): string {
 }
 
 function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return 'Please try again.';
+  return getApiErrorMessage(error);
 }
 
 function getMutationErrorMessage(error: unknown): string | undefined {
@@ -1634,9 +1917,13 @@ function getMutationErrorMessage(error: unknown): string | undefined {
     return undefined;
   }
 
-  if (error instanceof Error) {
-    return error.message;
+  return getApiErrorMessage(error, 'Could not create the assignment. Please try again.');
+}
+
+function getRecommendationErrorMessage(error: unknown): string | undefined {
+  if (!error) {
+    return undefined;
   }
 
-  return 'Could not create the assignment. Please try again.';
+  return getApiErrorMessage(error, 'Could not load recommendations. Please try again.');
 }
