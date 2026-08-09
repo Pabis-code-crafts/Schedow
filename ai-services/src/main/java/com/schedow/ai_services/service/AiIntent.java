@@ -1,0 +1,16 @@
+package com.schedow.ai_services.service;
+
+public enum AiIntent {
+    RECOMMEND_WORKER,
+    EXPLAIN_ASSIGNMENT,
+    SHOW_WEEK,
+    SHOW_DAY,
+    SHOW_SHIFT,
+    SHOW_WORKER,
+    CHECK_STAFFING,
+    DASHBOARD_SUMMARY,
+    ASSIGN_WORKER,
+    COMPARE_WORKERS,
+    FIND_AVAILABLE_WORKERS,
+    GENERAL_CHAT
+}

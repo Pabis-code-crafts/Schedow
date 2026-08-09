@@ -2,14 +2,22 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import {
+  changeAssignmentWorker,
+  createShiftTemplate,
   createScheduleAssignment,
   getShiftRecommendations,
   getShiftTemplates,
   getWeeklyScheduleAssignments,
   getWorkers,
+  removeScheduleAssignment,
 } from '@/features/schedule/api';
 import { mapWeeklySchedule } from '@/features/schedule/scheduleMapper';
-import type { CreateAssignmentPayload, ShiftRecommendationPayload } from '@/features/schedule/types';
+import type {
+  ChangeAssignmentWorkerPayload,
+  CreateAssignmentPayload,
+  CreateShiftPayload,
+  ShiftRecommendationPayload,
+} from '@/features/schedule/types';
 
 export const scheduleQueryKeys = {
   all: ['schedule'] as const,
@@ -19,6 +27,12 @@ export const scheduleQueryKeys = {
   workers: () => [...scheduleQueryKeys.all, 'workers'] as const,
 };
 
+export function useShiftTemplates() {
+  return useQuery({
+    queryKey: scheduleQueryKeys.shiftTemplates(),
+    queryFn: getShiftTemplates,
+  });
+}
 export function useScheduleWorkspace(weekStartDate: string) {
   const shiftTemplatesQuery = useQuery({
     queryKey: scheduleQueryKeys.shiftTemplates(),
@@ -76,9 +90,46 @@ export function useCreateScheduleAssignment(weekStartDate: string) {
       await queryClient.invalidateQueries({
         queryKey: weekAssignmentsQueryKey,
       });
-      await queryClient.refetchQueries({
+    },
+  });
+}
+
+export function useCreateShiftTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreateShiftPayload) => createShiftTemplate(payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: scheduleQueryKeys.shiftTemplates(),
+      });
+    },
+  });
+}
+
+export function useChangeAssignmentWorker(weekStartDate: string) {
+  const queryClient = useQueryClient();
+  const weekAssignmentsQueryKey = scheduleQueryKeys.weekAssignments(weekStartDate);
+
+  return useMutation({
+    mutationFn: (payload: ChangeAssignmentWorkerPayload) => changeAssignmentWorker(payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
         queryKey: weekAssignmentsQueryKey,
-        type: 'active',
+      });
+    },
+  });
+}
+
+export function useRemoveScheduleAssignment(weekStartDate: string) {
+  const queryClient = useQueryClient();
+  const weekAssignmentsQueryKey = scheduleQueryKeys.weekAssignments(weekStartDate);
+
+  return useMutation({
+    mutationFn: (assignmentId: number) => removeScheduleAssignment(assignmentId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: weekAssignmentsQueryKey,
       });
     },
   });
@@ -89,3 +140,4 @@ export function useShiftRecommendations() {
     mutationFn: (payload: ShiftRecommendationPayload) => getShiftRecommendations(payload),
   });
 }
+

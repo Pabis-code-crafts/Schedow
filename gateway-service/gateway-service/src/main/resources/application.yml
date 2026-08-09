@@ -15,7 +15,8 @@ spring:
             cors-configurations:
               '[/**]':
                 allowedOrigins:
-                  - "http://localhost:5173"
+                  - ${FRONTEND_ORIGIN:http://localhost:5173}
+                  - ${FRONTEND_DOCKER_ORIGIN:http://localhost:3000}
                 allowedMethods:
                   - GET
                   - POST
@@ -28,26 +29,24 @@ spring:
           routes:
 
             - id: user-service
-              uri: http://localhost:8082
+              uri: ${USER_SERVICE_URL:http://localhost:8082}
               predicates:
                 - Path=/api/v1/users/**
               # filters:
               #   - JwtAuthenticationFilter
 
             - id: schedule-service
-              uri: http://localhost:8084
+              uri: ${SCHEDULE_SERVICE_URL:http://localhost:8084}
               predicates:
                 - Path=/api/v1/schedules/**
               filters:
                 - JwtAuthenticationFilter
 
             - id: ai-service
-              uri: http://localhost:8086
+              uri: ${AI_SERVICE_URL:http://localhost:8066}
               predicates:
-                - Path=/api/v1/chat/**
-              filters:
-                - JwtAuthenticationFilter
-
+                - Path=/api/v1/ai/**
+            
 management:
   endpoints:
     web:

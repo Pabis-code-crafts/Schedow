@@ -1,11 +1,14 @@
 package com.schedow.schedule_service.service;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.schedow.schedule_service.dto.CreateWeeklyShiftAssignmentRequest;
 import com.schedow.schedule_service.dto.ShiftRecommendationRequest;
 import com.schedow.schedule_service.dto.ShiftRecommendationResponse;
 import com.schedow.schedule_service.dto.UserResponse;
@@ -50,6 +53,8 @@ public List<ShiftRecommendationResponse> getRecommendations(
     Shift shift = shiftRepository.findById(request.getShiftId())
             .orElseThrow(() -> new RuntimeException("Shift not found"));
 
+    LocalDate weekStartDate = resolveWeekStartDate(request);
+
     List<UserResponse> workers = workerProvider.getWorkers();
 
     List<ShiftRecommendationResponse> recommendations =
@@ -77,8 +82,12 @@ public List<ShiftRecommendationResponse> getRecommendations(
             continue;
         }
 
+        if (!isValidCandidate(worker.getId(), request, weekStartDate, shift)) {
+            continue;
+        }
+
         int assignedHours =
-                calculateAssignedHours(worker.getId());
+                calculateAssignedHours(worker.getId(), weekStartDate);
 
         int fairness =
                 calculateFairness(
@@ -140,10 +149,13 @@ private boolean isUnavailable(
 
     return false;
 }
-private int calculateAssignedHours(Long userId) {
+private int calculateAssignedHours(Long userId, LocalDate weekStartDate) {
 
     List<WeeklyShiftAssignment> assignments =
-            assignmentRepository.findAll();
+            assignmentRepository.findByAssignedUserIdAndWeekStartDate(
+                    userId,
+                    weekStartDate
+            );
 
     int assignedHours = 0;
 
@@ -151,10 +163,6 @@ private int calculateAssignedHours(Long userId) {
 
         if (assignment.getAssignedUserId() == null
                 || assignment.getShiftTemplate() == null) {
-            continue;
-        }
-
-        if (!assignment.getAssignedUserId().equals(userId)) {
             continue;
         }
 
@@ -200,14 +208,59 @@ private ShiftRecommendationResponse buildRecommendationResponse(
 
     if (recurring) {
 
-        response.setReason("Recurring worker");
+    response.setReason(
+            worker.getName() + " is available for this shift, has no conflicting assignment, "
+                    + "remains within contracted hours for the selected week, and is the recurring worker."
+    );
 
     } else {
 
-        response.setReason("Available worker");
+        response.setReason(
+                worker.getName() + " is available for this shift, has no conflicting assignment, "
+                        + "and remains within contracted hours for the selected week."
+        );
 
     }
 
     return response;
+}
+
+private LocalDate resolveWeekStartDate(ShiftRecommendationRequest request) {
+    if (request.getWeekStartDate() != null) {
+        return request.getWeekStartDate();
+    }
+
+    return request.getDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+}
+
+private boolean isValidCandidate(
+        Long userId,
+        ShiftRecommendationRequest source,
+        LocalDate weekStartDate,
+        Shift shift
+) {
+    CreateWeeklyShiftAssignmentRequest validation =
+            new CreateWeeklyShiftAssignmentRequest();
+
+    validation.setWeekStartDate(weekStartDate);
+    validation.setDayOfWeek(source.getDayOfWeek());
+    validation.setAssignedUserId(userId);
+    validation.setShiftId(source.getShiftId());
+
+    try {
+        if (source.getAssignmentId() == null) {
+            schedulingValidationService.validateAssignment(validation, shift);
+        } else {
+            schedulingValidationService.validateAssignmentForUpdate(
+                    source.getAssignmentId(),
+                    validation,
+                    shift
+            );
+        }
+
+        return true;
+    } catch (RuntimeException exception) {
+        return false;
+    }
 }
 }

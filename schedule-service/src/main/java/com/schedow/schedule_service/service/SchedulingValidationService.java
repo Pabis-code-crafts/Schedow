@@ -193,4 +193,68 @@ private int calculateAssignedHours(
 
     return total;
 }
+private void validateNoShiftConflictForUpdate(
+        Long assignmentId,
+        CreateWeeklyShiftAssignmentRequest request,
+        Shift newShift
+) {
+
+    List<WeeklyShiftAssignment> assignments =
+            assignmentRepository.findByWeekStartDate(
+                    request.getWeekStartDate()
+            );
+
+    for (WeeklyShiftAssignment assignment : assignments) {
+
+        if (assignment.getId().equals(assignmentId)) {
+            continue;
+        }
+
+        if (assignment.getAssignedUserId() == null
+                || assignment.getDayOfWeek() == null
+                || assignment.getShiftTemplate() == null) {
+            continue;
+        }
+
+        if (!assignment.getAssignedUserId()
+                .equals(request.getAssignedUserId())) {
+            continue;
+        }
+
+        if (!assignment.getDayOfWeek()
+                .equals(request.getDayOfWeek())) {
+            continue;
+        }
+
+        Shift existingShift = assignment.getShiftTemplate();
+
+        boolean overlap =
+                newShift.getStartTime().isBefore(existingShift.getEndTime())
+                &&
+                newShift.getEndTime().isAfter(existingShift.getStartTime());
+
+        if (overlap) {
+            throw new SchedulingConflictException(
+                    "Worker already has a conflicting shift."
+            );
+        }
+    }
+}
+public void validateAssignmentForUpdate(
+        Long assignmentId,
+        CreateWeeklyShiftAssignmentRequest request,
+        Shift shift
+) {
+
+    validateNoShiftConflictForUpdate(
+            assignmentId,
+            request,
+            shift
+    );
+
+    validateContractedHours(
+            request,
+            shift
+    );
+}
 }

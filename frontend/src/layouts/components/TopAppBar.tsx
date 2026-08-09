@@ -108,9 +108,9 @@ export function TopAppBar({ drawerWidth, onMenuClick }: TopAppBarProps) {
               <NotificationsNoneRoundedIcon />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Selva Kumar">
+          <Tooltip title="Pavithran G">
             <Avatar
-              alt="Selva Kumar"
+              alt="Pavithran G"
               sx={{
                 bgcolor: 'primary.main',
                 color: 'primary.contrastText',
@@ -120,7 +120,7 @@ export function TopAppBar({ drawerWidth, onMenuClick }: TopAppBarProps) {
                 width: 40,
               }}
             >
-              SK
+              PG
             </Avatar>
           </Tooltip>
         </Stack>

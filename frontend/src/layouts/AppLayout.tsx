@@ -6,9 +6,12 @@ import { NavigationDrawer } from '@/layouts/components/NavigationDrawer';
 import { TopAppBar } from '@/layouts/components/TopAppBar';
 
 const drawerWidth = 280;
+const collapsedDrawerWidth = 88;
 
 export function AppLayout({ children }: PropsWithChildren) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isDesktopDrawerCollapsed, setIsDesktopDrawerCollapsed] = useState(false);
+  const activeDrawerWidth = isDesktopDrawerCollapsed ? collapsedDrawerWidth : drawerWidth;
 
   const closeDrawer = () => setIsDrawerOpen(false);
   const toggleDrawer = () => setIsDrawerOpen((current) => !current);
@@ -21,11 +24,14 @@ export function AppLayout({ children }: PropsWithChildren) {
         minHeight: '100vh',
       }}
     >
-      <TopAppBar drawerWidth={drawerWidth} onMenuClick={toggleDrawer} />
+      <TopAppBar drawerWidth={activeDrawerWidth} onMenuClick={toggleDrawer} />
       <NavigationDrawer
+        collapsedWidth={collapsedDrawerWidth}
+        isCollapsed={isDesktopDrawerCollapsed}
         drawerWidth={drawerWidth}
         isOpen={isDrawerOpen}
         onClose={closeDrawer}
+        onToggleCollapse={() => setIsDesktopDrawerCollapsed((current) => !current)}
       />
       <Box
         component="main"
@@ -38,7 +44,7 @@ export function AppLayout({ children }: PropsWithChildren) {
         }}
       >
         <Toolbar />
-        <Box sx={{ mx: 'auto', maxWidth: 1440, pt: { xs: 2, sm: 3 } }}>{children}</Box>
+        <Box sx={{ mx: 'auto', maxWidth: 1680, pt: { xs: 2, sm: 3 } }}>{children}</Box>
       </Box>
     </Box>
   );

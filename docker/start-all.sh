@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+set -eu
+
+SPRING_DATASOURCE_URL="${USER_SERVICE_DB_URL:-${SPRING_DATASOURCE_URL:-jdbc:postgresql://localhost:5432/users_db}}" \
+SPRING_DATASOURCE_USERNAME="${USER_SERVICE_DB_USERNAME:-${SPRING_DATASOURCE_USERNAME:-postgres}}" \
+SPRING_DATASOURCE_PASSWORD="${USER_SERVICE_DB_PASSWORD:-${SPRING_DATASOURCE_PASSWORD:-postgres}}" \
+SERVER_PORT="${USER_SERVICE_PORT:-8082}" \
+java -jar /app/user-service.jar &
+
+SPRING_DATASOURCE_URL="${SCHEDULE_SERVICE_DB_URL:-${SPRING_DATASOURCE_URL:-jdbc:postgresql://localhost:5433/schedule_db}}" \
+SPRING_DATASOURCE_USERNAME="${SCHEDULE_SERVICE_DB_USERNAME:-${SPRING_DATASOURCE_USERNAME:-postgres}}" \
+SPRING_DATASOURCE_PASSWORD="${SCHEDULE_SERVICE_DB_PASSWORD:-${SPRING_DATASOURCE_PASSWORD:-postgres}}" \
+SERVER_PORT="${SCHEDULE_SERVICE_PORT:-8084}" \
+java -jar /app/schedule-service.jar &
+
+SERVER_PORT="${AI_SERVICE_PORT:-8066}" \
+SCHEDULE_SERVICE_BASE_URL="${SCHEDULE_SERVICE_BASE_URL:-http://localhost:8084/api/v1/schedules}" \
+java -jar /app/ai-services.jar &
+
+SERVER_PORT="${GATEWAY_PORT:-8088}" \
+USER_SERVICE_URL="${USER_SERVICE_URL:-http://localhost:8082}" \
+SCHEDULE_SERVICE_URL="${SCHEDULE_SERVICE_URL:-http://localhost:8084}" \
+AI_SERVICE_URL="${AI_SERVICE_URL:-http://localhost:8066}" \
+java -jar /app/gateway-service.jar &
+
+exec nginx -g 'daemon off;'

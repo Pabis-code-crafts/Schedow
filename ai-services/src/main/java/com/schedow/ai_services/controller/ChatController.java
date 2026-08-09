@@ -1,9 +1,13 @@
 package com.schedow.ai_services.controller;
 
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.schedow.ai_services.dto.ChatRequest;
 import com.schedow.ai_services.dto.ChatResponse;
 import com.schedow.ai_services.service.ChatService;
-import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/ai")

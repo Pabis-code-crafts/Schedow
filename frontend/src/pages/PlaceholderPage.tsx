@@ -1,6 +1,3 @@
-import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
@@ -40,12 +37,7 @@ export function PlaceholderPage({
       <PageHeader
         actions={
           <Stack direction="row" spacing={1.5}>
-            <Button color="primary" startIcon={<AutoAwesomeIcon />} variant="contained">
-              Ask AI
-            </Button>
-            <Button color="primary" endIcon={<ArrowForwardRoundedIcon />} variant="outlined">
-              View workflow
-            </Button>
+            <Chip color="secondary" label="Coming Soon" variant="outlined" />
           </Stack>
         }
         eyebrow={eyebrow}
@@ -59,9 +51,9 @@ export function PlaceholderPage({
             <StatCard
               helperText={stat.helperText}
               icon={icon}
-              title={stat.title}
-              tone={stat.tone}
-              trend={{ direction: 'flat', label: 'Placeholder' }}
+                title={stat.title}
+                tone={stat.tone}
+              trend={{ direction: 'flat', label: 'Coming Soon' }}
               value={stat.value}
             />
           </Grid>
@@ -77,9 +69,9 @@ export function PlaceholderPage({
                 title={`${title} workspace`}
               />
               <EmptyState
-                description="The application shell, navigation, and reusable surfaces are ready. Business data and API-backed workflows can be added in the next implementation step."
+                description="Coming Soon. This feature is disabled for staging until the backend workflow is ready."
                 icon={icon}
-                title="Placeholder content"
+                title="Unavailable in staging"
               />
             </Stack>
           </AppCard>
@@ -88,11 +80,10 @@ export function PlaceholderPage({
           <Stack spacing={3}>
             <AppCard>
               <Stack spacing={2}>
-                <Chip color="secondary" label="Production shell" sx={{ alignSelf: 'flex-start' }} />
-                <Typography variant="h5">Designed for daily operations</Typography>
+                <Chip color="secondary" label="Coming Soon" sx={{ alignSelf: 'flex-start' }} />
+                <Typography variant="h5">Disabled for staging</Typography>
                 <Typography color="text.secondary" variant="body2">
-                  Responsive navigation, polished surfaces, and clear hierarchy are in place before
-                  feature-specific content is introduced.
+                  This surface remains visible for navigation context, but unfinished actions are not clickable.
                 </Typography>
               </Stack>
             </AppCard>

@@ -1,5 +1,6 @@
 package com.schedow.ai_services.tool;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.ai.tool.annotation.Tool;
@@ -22,11 +23,18 @@ public class WorkerScheduleTool {
 public List<WorkerScheduleResponse> getWorkerSchedule(
 
         @ToolParam(description = "Worker ID")
-        Long userId
+        Long userId,
+
+        @ToolParam(description = "Week start date")
+        LocalDate weekStartDate
 
 ) {
 
-    return scheduleClient.getWorkerSchedule(userId);
+    if (weekStartDate == null) {
+        return scheduleClient.getWorkerSchedule(userId);
+    }
+
+    return scheduleClient.getWorkerSchedule(userId, weekStartDate);
 
 }
 
