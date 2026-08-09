@@ -6,11 +6,14 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.schedow.schedule_service.dto.AssignmentValidationRequest;
+import com.schedow.schedule_service.dto.AssignmentValidationResponse;
 import com.schedow.schedule_service.dto.CreateRecurringShiftAssignmentRequest;
 import com.schedow.schedule_service.dto.CreateShiftRequest;
 import com.schedow.schedule_service.dto.CreateUnavailabilityRequest;
 import com.schedow.schedule_service.dto.CreateWeeklyShiftAssignmentRequest;
 import com.schedow.schedule_service.dto.DashboardResponse;
+import com.schedow.schedule_service.dto.UpdateAssignmentWorkerRequest;
 import com.schedow.schedule_service.dto.UserResponse;
 import com.schedow.schedule_service.dto.WeekScheduleResponse;
 import com.schedow.schedule_service.dto.WorkerScheduleResponse;
@@ -18,6 +21,7 @@ import com.schedow.schedule_service.entity.RecurringShiftAssignment;
 import com.schedow.schedule_service.entity.Shift;
 import com.schedow.schedule_service.entity.Unavailability;
 import com.schedow.schedule_service.entity.WeeklyShiftAssignment;
+import com.schedow.schedule_service.exception.SchedulingConflictException;
 import com.schedow.schedule_service.repository.RecurringShiftAssignmentRepository;
 import com.schedow.schedule_service.repository.ShiftRepository;
 import com.schedow.schedule_service.repository.UnavailabilityRepository;
@@ -262,10 +266,18 @@ public List<WorkerScheduleResponse> getWorkerSchedule(
         Long userId
 ) {
 
+    return getWorkerSchedule(userId, null);
+}
+
+public List<WorkerScheduleResponse> getWorkerSchedule(
+        Long userId,
+        LocalDate weekStartDate
+) {
+
     List<WeeklyShiftAssignment> assignments =
-            assignmentRepository.findByAssignedUserId(
-                    userId
-            );
+            weekStartDate == null
+                    ? assignmentRepository.findByAssignedUserId(userId)
+                    : assignmentRepository.findByAssignedUserIdAndWeekStartDate(userId, weekStartDate);
 
     List<WorkerScheduleResponse> response =
             new ArrayList<>();
@@ -301,6 +313,50 @@ public List<WorkerScheduleResponse> getWorkerSchedule(
     return response;
 }
 
+public AssignmentValidationResponse validateAssignment(
+        AssignmentValidationRequest request
+) {
+
+    try {
+        Shift shift = shiftRepository.findById(
+                request.getShiftId()
+        ).orElseThrow(() ->
+                new RuntimeException("Shift not found")
+        );
+
+        CreateWeeklyShiftAssignmentRequest validation =
+                new CreateWeeklyShiftAssignmentRequest();
+
+        validation.setWeekStartDate(request.getWeekStartDate());
+        validation.setDayOfWeek(request.getDayOfWeek());
+        validation.setAssignedUserId(request.getAssignedUserId());
+        validation.setShiftId(request.getShiftId());
+
+        if (request.getAssignmentId() == null) {
+            schedulingValidationService.validateAssignment(
+                    validation,
+                    shift
+            );
+        } else {
+            schedulingValidationService.validateAssignmentForUpdate(
+                    request.getAssignmentId(),
+                    validation,
+                    shift
+            );
+        }
+
+        return new AssignmentValidationResponse(
+                true,
+                "Assignment is valid."
+        );
+    } catch (RuntimeException exception) {
+        return new AssignmentValidationResponse(
+                false,
+                exception.getMessage()
+        );
+    }
+}
+
 public DashboardResponse getDashboard() {
 
     DashboardResponse response =
@@ -329,5 +385,65 @@ public DashboardResponse getDashboard() {
     );
 
     return response;
+}
+public void deleteAssignment(Long assignmentId) {
+
+    WeeklyShiftAssignment assignment =
+            assignmentRepository.findById(assignmentId)
+                    .orElseThrow(() ->
+                            new RuntimeException(
+                                    "Assignment not found."
+                            )
+                    );
+
+    assignmentRepository.delete(assignment);
+}
+public WeeklyShiftAssignment updateAssignedWorker(
+        Long assignmentId,
+        UpdateAssignmentWorkerRequest request
+) {
+
+    WeeklyShiftAssignment assignment =
+            assignmentRepository.findById(assignmentId)
+                    .orElseThrow(() ->
+                            new SchedulingConflictException(
+                                    "Assignment not found."
+                            ));
+
+    Shift shift = assignment.getShiftTemplate();
+
+    CreateWeeklyShiftAssignmentRequest validation =
+            new CreateWeeklyShiftAssignmentRequest();
+
+    validation.setWeekStartDate(
+            assignment.getWeekStartDate()
+    );
+
+    validation.setDayOfWeek(
+            assignment.getDayOfWeek()
+    );
+
+    validation.setAssignedUserId(
+            request.getNewUserId()
+    );
+
+    validation.setShiftId(
+            shift.getId()
+    );
+
+    schedulingValidationService
+            .validateAssignmentForUpdate(
+                    assignmentId,
+                    validation,
+                    shift
+            );
+
+    assignment.setAssignedUserId(
+            request.getNewUserId()
+    );
+
+    return assignmentRepository.save(
+            assignment
+    );
 }
 }

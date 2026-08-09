@@ -1,4 +1,3 @@
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded';
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
@@ -9,6 +8,8 @@ export type NavigationItem = {
   label: string;
   path: string;
   icon: SvgIconComponent;
+  disabled?: boolean;
+  badge?: string;
 };
 
 export const navigationItems: NavigationItem[] = [
@@ -16,6 +17,8 @@ export const navigationItems: NavigationItem[] = [
     label: 'Dashboard',
     path: '/dashboard',
     icon: DashboardRoundedIcon,
+    disabled: true,
+    badge: 'Coming Soon',
   },
   {
     label: 'Schedule',
@@ -23,18 +26,15 @@ export const navigationItems: NavigationItem[] = [
     icon: CalendarMonthIcon,
   },
   {
-    label: 'Workers',
-    path: '/workers',
+    label: 'People & Shifts',
+    path: '/people-shifts',
     icon: GroupsRoundedIcon,
-  },
-  {
-    label: 'AI Assistant',
-    path: '/ai-assistant',
-    icon: AutoAwesomeIcon,
   },
   {
     label: 'Settings',
     path: '/settings',
     icon: SettingsRoundedIcon,
+    disabled: true,
+    badge: 'Coming Soon',
   },
 ];

@@ -12,6 +12,10 @@ private DayOfWeek dayOfWeek;
 
 private LocalDate date;
 
+private LocalDate weekStartDate;
+
+private Long assignmentId;
+
 public ShiftRecommendationRequest() {
 }
 
@@ -37,6 +41,22 @@ public LocalDate getDate() {
 
 public void setDate(LocalDate date) {
     this.date = date;
+}
+
+public LocalDate getWeekStartDate() {
+    return weekStartDate;
+}
+
+public void setWeekStartDate(LocalDate weekStartDate) {
+    this.weekStartDate = weekStartDate;
+}
+
+public Long getAssignmentId() {
+    return assignmentId;
+}
+
+public void setAssignmentId(Long assignmentId) {
+    this.assignmentId = assignmentId;
 }
 
 

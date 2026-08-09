@@ -2,7 +2,6 @@ import { Navigate, createBrowserRouter } from 'react-router-dom';
 
 import { App } from '@/App';
 import { DesignSystemShowcase } from '@/design-system/DesignSystemShowcase';
-import { AIAssistantPage } from '@/pages/AIAssistantPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { SchedulePage } from '@/pages/SchedulePage';
 import { SettingsPage } from '@/pages/SettingsPage';
@@ -15,7 +14,7 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
     children: [
       {
         index: true,
-        element: <Navigate replace to="/dashboard" />,
+        element: <Navigate replace to="/schedule" />,
       },
       {
         path: 'dashboard',
@@ -26,12 +25,12 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
         element: <SchedulePage />,
       },
       {
-        path: 'workers',
+        path: 'people-shifts',
         element: <WorkersPage />,
       },
       {
-        path: 'ai-assistant',
-        element: <AIAssistantPage />,
+        path: 'workers',
+        element: <Navigate replace to="/people-shifts" />,
       },
       {
         path: 'settings',

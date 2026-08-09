@@ -101,6 +101,12 @@ export type CreateAssignmentPayload = {
   shiftId: number;
 };
 
+export type CreateShiftPayload = {
+  name: string;
+  startTime: string;
+  endTime: string;
+};
+
 export type ShiftRecommendationPayload = {
   shiftId: number;
   dayOfWeek: string;
@@ -113,6 +119,8 @@ export type ShiftRecommendation = {
   fairnessScore: number | null;
   recurringWorker: boolean;
   reason: string | null;
+  canAssign: boolean;
+  disabledReason: string | null;
 };
 
 export type ShiftRecommendationDto = {
@@ -121,6 +129,15 @@ export type ShiftRecommendationDto = {
   fairnessScore?: number;
   recurringWorker?: boolean;
   reason?: string;
+  canAssign?: boolean;
+  assignable?: boolean;
+  disabled?: boolean;
+  disabledReason?: string;
+};
+
+export type ChangeAssignmentWorkerPayload = {
+  assignmentId: number;
+  newUserId: number;
 };
 
 export type ListResponse<TItem> =

@@ -1,19 +1,149 @@
 services:
   postgres-users:
-    image: postgres:16
-    container_name: postgres-users
+    image: postgres:16-alpine
+    container_name: schedow-postgres-users
     environment:
-      POSTGRES_DB: users_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${USER_DB_NAME:-users_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${USER_DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_users_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   postgres-schedule:
-    image: postgres:16
-    container_name: postgres-schedule
+    image: postgres:16-alpine
+    container_name: schedow-postgres-schedule
     environment:
-      POSTGRES_DB: schedule_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${SCHEDULE_DB_NAME:-schedule_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
-      - "5433:5432"
+      - "127.0.0.1:${SCHEDULE_DB_PORT:-5433}:5432"
+    volumes:
+      - postgres_schedule_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  user-service:
+    build:
+      context: ./user-service/user-service
+    container_name: schedow-user-service
+    environment:
+      SERVER_PORT: ${USER_SERVICE_PORT:-8082}
+      SPRING_DATASOURCE_URL: ${USER_SERVICE_DB_URL:-jdbc:postgresql://postgres-users:5432/users_db}
+      SPRING_DATASOURCE_USERNAME: ${USER_SERVICE_DB_USERNAME:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${USER_SERVICE_DB_PASSWORD:-postgres}
+    depends_on:
+      postgres-users:
+        condition: service_healthy
+    expose:
+      - "${USER_SERVICE_PORT:-8082}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:$${SERVER_PORT:-8082}/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      start_period: 40s
+      retries: 10
+    restart: unless-stopped
+
+  schedule-service:
+    build:
+      context: ./schedule-service
+    container_name: schedow-schedule-service
+    environment:
+      SERVER_PORT: ${SCHEDULE_SERVICE_PORT:-8084}
+      SPRING_DATASOURCE_URL: ${SCHEDULE_SERVICE_DB_URL:-jdbc:postgresql://postgres-schedule:5432/schedule_db}
+      SPRING_DATASOURCE_USERNAME: ${SCHEDULE_SERVICE_DB_USERNAME:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${SCHEDULE_SERVICE_DB_PASSWORD:-postgres}
+    depends_on:
+      postgres-schedule:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    expose:
+      - "${SCHEDULE_SERVICE_PORT:-8084}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:$${SERVER_PORT:-8084}/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      start_period: 40s
+      retries: 10
+    restart: unless-stopped
+
+  ai-service:
+    build:
+      context: ./ai-services
+    container_name: schedow-ai-service
+    environment:
+      SERVER_PORT: ${AI_SERVICE_PORT:-8066}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      SCHEDULE_SERVICE_BASE_URL: ${SCHEDULE_SERVICE_BASE_URL:-http://schedule-service:8084/api/v1/schedules}
+    depends_on:
+      schedule-service:
+        condition: service_healthy
+    expose:
+      - "${AI_SERVICE_PORT:-8066}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:$${SERVER_PORT:-8066}/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      start_period: 40s
+      retries: 10
+    restart: unless-stopped
+
+  gateway-service:
+    build:
+      context: ./gateway-service/gateway-service
+    container_name: schedow-gateway-service
+    environment:
+      SERVER_PORT: 8088
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
+      FRONTEND_DOCKER_ORIGIN: ${FRONTEND_DOCKER_ORIGIN:-http://localhost:3000}
+      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8082}
+      SCHEDULE_SERVICE_URL: ${SCHEDULE_SERVICE_URL:-http://schedule-service:8084}
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai-service:8066}
+    depends_on:
+      user-service:
+        condition: service_healthy
+      schedule-service:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    ports:
+      - "${GATEWAY_PORT:-8088}:8088"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:$${SERVER_PORT:-8088}/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      start_period: 40s
+      retries: 10
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/}
+        VITE_APP_NAME: ${VITE_APP_NAME:-Schedow}
+    container_name: schedow-frontend
+    depends_on:
+      gateway-service:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    restart: unless-stopped
+
+volumes:
+  postgres_users_data:
+  postgres_schedule_data:
