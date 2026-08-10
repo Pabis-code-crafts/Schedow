@@ -1,4 +1,4 @@
-# Schedow â€” Intelligent Shift Scheduling Platform
+# Schedow Ã¢â‚¬â€ Intelligent Shift Scheduling Platform
 
 ## Overview
 
@@ -300,7 +300,7 @@ Run it with your real environment variables and expose port `80` from the contai
 
 ### Troubleshooting
 
-* If the AI service is unhealthy, confirm `GEMINI_API_KEY` is set in `.env`.
+* If the AI service is unhealthy or Compose reports `Set GEMINI_API_KEY`, add a real Gemini API key to the root `.env` file. The AI service cannot start without it because Spring AI creates the Gemini client during application startup.
 * If backend services cannot connect to PostgreSQL, check `docker compose ps` and confirm both database health checks are passing.
 * If the frontend loads but API calls fail, confirm `VITE_API_BASE_URL=/` and that the `gateway-service` container is healthy.
 * If a port is already in use, override `FRONTEND_PORT`, `GATEWAY_PORT`, `USER_DB_PORT`, or `SCHEDULE_DB_PORT` in `.env`. `GATEWAY_PORT` is the host port; the gateway still listens on `8088` inside Docker.

@@ -10,8 +10,7 @@ const collapsedDrawerWidth = 88;
 
 export function AppLayout({ children }: PropsWithChildren) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isDesktopDrawerCollapsed, setIsDesktopDrawerCollapsed] = useState(false);
-  const activeDrawerWidth = isDesktopDrawerCollapsed ? collapsedDrawerWidth : drawerWidth;
+  const activeDrawerWidth = collapsedDrawerWidth;
 
   const closeDrawer = () => setIsDrawerOpen(false);
   const toggleDrawer = () => setIsDrawerOpen((current) => !current);
@@ -27,11 +26,10 @@ export function AppLayout({ children }: PropsWithChildren) {
       <TopAppBar drawerWidth={activeDrawerWidth} onMenuClick={toggleDrawer} />
       <NavigationDrawer
         collapsedWidth={collapsedDrawerWidth}
-        isCollapsed={isDesktopDrawerCollapsed}
+        isCollapsed
         drawerWidth={drawerWidth}
         isOpen={isDrawerOpen}
         onClose={closeDrawer}
-        onToggleCollapse={() => setIsDesktopDrawerCollapsed((current) => !current)}
       />
       <Box
         component="main"
