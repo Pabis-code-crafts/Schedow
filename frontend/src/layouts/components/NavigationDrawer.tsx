@@ -1,11 +1,8 @@
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded';
-import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import Drawer from '@mui/material/Drawer';
-import IconButton from '@mui/material/IconButton';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
@@ -16,6 +13,7 @@ import Toolbar from '@mui/material/Toolbar';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
 import { navigationItems } from '@/config/navigation';
@@ -26,7 +24,6 @@ type NavigationDrawerProps = {
   isCollapsed: boolean;
   isOpen: boolean;
   onClose: () => void;
-  onToggleCollapse: () => void;
 };
 
 export function NavigationDrawer({
@@ -35,8 +32,9 @@ export function NavigationDrawer({
   isCollapsed,
   isOpen,
   onClose,
-  onToggleCollapse,
 }: NavigationDrawerProps) {
+  const [isDesktopHovered, setIsDesktopHovered] = useState(false);
+  const isDesktopCollapsed = isCollapsed && !isDesktopHovered;
   const drawerContent = (collapsed: boolean) => (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Toolbar sx={{ justifyContent: collapsed ? 'center' : 'space-between', minHeight: { xs: 64, sm: 72 }, px: collapsed ? 1.5 : 2.5 }}>
@@ -68,13 +66,7 @@ export function NavigationDrawer({
           </Box>
           ) : null}
         </Stack>
-        {!collapsed ? (
-          <Tooltip title="Collapse navigation">
-            <IconButton aria-label="Collapse navigation" onClick={onToggleCollapse} size="small" sx={{ display: { xs: 'none', md: 'inline-flex' } }}>
-              <ChevronLeftRoundedIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        ) : null}
+
       </Toolbar>
       <Divider />
       <List sx={{ flex: 1, px: 1.5, py: 2 }}>
@@ -143,24 +135,7 @@ export function NavigationDrawer({
           );
         })}
       </List>
-      {isCollapsed ? (
-        <Box sx={{ px: 1.5, pb: 2 }}>
-          <Tooltip title="Expand navigation" placement="right">
-            <IconButton
-              aria-label="Expand navigation"
-              onClick={onToggleCollapse}
-              sx={{
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 3,
-                width: '100%',
-              }}
-            >
-              <ChevronRightRoundedIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      ) : null}
+
       {!collapsed ? <Box sx={{ p: 2 }}>
         <Box
           sx={{
@@ -204,18 +179,22 @@ export function NavigationDrawer({
       </Drawer>
       <Drawer
         open
+        PaperProps={{
+          onMouseEnter: () => setIsDesktopHovered(true),
+          onMouseLeave: () => setIsDesktopHovered(false),
+        }}
         sx={{
           display: { xs: 'none', md: 'block' },
           '& .MuiDrawer-paper': {
             boxSizing: 'border-box',
             overflowX: 'hidden',
-            transition: (theme) => theme.transitions.create('width'),
-            width: isCollapsed ? collapsedWidth : drawerWidth,
+            transition: (theme) => theme.transitions.create('width', { duration: theme.transitions.duration.shorter, easing: theme.transitions.easing.easeInOut }),
+            width: isDesktopCollapsed ? collapsedWidth : drawerWidth,
           },
         }}
         variant="permanent"
       >
-        {drawerContent(isCollapsed)}
+        {drawerContent(isDesktopCollapsed)}
       </Drawer>
     </Box>
   );
