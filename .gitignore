@@ -1,0 +1,21 @@
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+!.env.dev.example
+!.env.prod.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Build outputs
+dist/
+build/
+target/
+node_modules/
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

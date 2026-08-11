@@ -1,0 +1,9 @@
+schedowai.duckdns.org {
+    handle /api/* {
+        reverse_proxy gateway-service:8088
+    }
+
+    handle {
+        reverse_proxy frontend:80
+    }
+}

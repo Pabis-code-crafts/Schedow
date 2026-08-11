@@ -17,6 +17,7 @@ spring:
                 allowedOrigins:
                   - ${FRONTEND_ORIGIN:http://localhost:5173}
                   - ${FRONTEND_DOCKER_ORIGIN:http://localhost:3000}
+                  - ${FRONTEND_PRODUCTION_ORIGIN:https://schedowai.duckdns.org}
                 allowedMethods:
                   - GET
                   - POST

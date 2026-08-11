@@ -107,9 +107,10 @@ services:
       context: ./gateway-service/gateway-service
     container_name: schedow-gateway-service
     environment:
-      SERVER_PORT: 8088
+      SERVER_PORT: ${GATEWAY_INTERNAL_PORT:-8088}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
       FRONTEND_DOCKER_ORIGIN: ${FRONTEND_DOCKER_ORIGIN:-http://localhost:3000}
+      FRONTEND_PRODUCTION_ORIGIN: ${FRONTEND_PRODUCTION_ORIGIN:-https://schedowai.duckdns.org}
       USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8082}
       SCHEDULE_SERVICE_URL: ${SCHEDULE_SERVICE_URL:-http://schedule-service:8084}
       AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai-service:8066}
@@ -121,7 +122,7 @@ services:
       ai-service:
         condition: service_healthy
     ports:
-      - "${GATEWAY_PORT:-8088}:8088"
+      - "${GATEWAY_HOST_BIND:-0.0.0.0}:${GATEWAY_PORT:-8088}:8088"
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:$${SERVER_PORT:-8088}/actuator/health || exit 1"]
       interval: 20s
@@ -141,9 +142,31 @@ services:
       gateway-service:
         condition: service_healthy
     ports:
-      - "${FRONTEND_PORT:-3000}:80"
+      - "${FRONTEND_HOST_BIND:-0.0.0.0}:${FRONTEND_PORT:-3000}:80"
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: schedow-caddy
+    profiles:
+      - production
+    depends_on:
+      gateway-service:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
     restart: unless-stopped
 
 volumes:
   postgres_users_data:
   postgres_schedule_data:
+  caddy_data:
+  caddy_config:

@@ -1,4 +1,4 @@
-# Schedow Ã¢â‚¬â€ Intelligent Shift Scheduling Platform
+# Schedow - Intelligent Shift Scheduling Platform
 
 ## Overview
 
@@ -165,143 +165,105 @@ Currently in active development.
 
 ## Running Schedow with Docker
 
-### Prerequisites
+Schedow runs from the same Compose file in two modes:
 
-* Docker Desktop or Docker Engine with Docker Compose v2
-* A Gemini API key for the AI service
-* Ports `3000`, `8088`, `5432`, and `5433` available on your machine, or override the host ports in `.env`
+* local development: no DuckDNS, no Caddy, local frontend/API access
+* EC2 production: Caddy reverse proxy, `schedowai.duckdns.org`, automatic HTTPS, production CORS, and internal Docker service networking
 
-### Environment setup
+Full deployment details are in [docs/deployment.md](docs/deployment.md).
 
-Create a root `.env` file from the example:
+### Local Development
+
+Create a local env file and set `GEMINI_API_KEY`:
 
 ```bash
-cp .env.example .env
+cp .env.dev.example .env.dev
+docker compose --env-file .env.dev up --build
 ```
 
 On Windows PowerShell:
 
 ```powershell
-Copy-Item .env.example .env
+Copy-Item .env.dev.example .env.dev
+docker compose --env-file .env.dev up --build
 ```
 
-Edit `.env` and set `GEMINI_API_KEY`. The example file contains safe placeholders only; do not commit real secrets.
+Local URLs:
 
-### Build and run
+* Frontend: `http://localhost:3000`
+* Gateway API: `http://localhost:8088`
+* Gateway health: `http://localhost:8088/actuator/health`
+* Users DB: `localhost:5432`
+* Schedule DB: `localhost:5433`
 
-From the repository root:
+### EC2 Production
+
+On EC2, make sure `schedowai.duckdns.org` points to the instance public IPv4 address and the security group allows inbound TCP `80` and `443`.
+
+Create the production env file and replace secret placeholders:
 
 ```bash
-docker compose up --build
+cp .env.prod.example .env.prod
 ```
 
-This starts the frontend, gateway, user service, schedule service, AI service, and two PostgreSQL databases.
+Deploy with:
 
-### URLs
+```bash
+docker compose --env-file .env.prod --profile production up -d --build
+```
 
-* Frontend: http://localhost:3000
-* Gateway API: http://localhost:8088
-* Gateway health: http://localhost:8088/actuator/health
-* User service, schedule service, and AI service are internal Docker services and are not exposed directly to the host.
-* PostgreSQL is bound to localhost for development only:
-  * Users DB: `localhost:5432`
-  * Schedule DB: `localhost:5433`
+Production URL:
 
-### Service overview
+* `https://schedowai.duckdns.org`
 
-* `frontend` builds the Vite app and serves it with nginx. Browser API calls go to `/api`, which nginx proxies to the gateway.
-* `gateway-service` is the main backend entry point and routes `/api/v1/users/**`, `/api/v1/schedules/**`, and `/api/v1/ai/**`.
+Useful checks:
+
+```bash
+docker compose --env-file .env.prod --profile production config
+docker compose --env-file .env.prod --profile production ps
+docker compose --env-file .env.prod --profile production logs -f caddy
+```
+
+### Service Overview
+
+* `caddy` is enabled only with the `production` profile and routes public HTTPS traffic.
+* `frontend` builds the Vite app with `VITE_API_BASE_URL=/` and serves it with nginx.
+* `gateway-service` routes `/api/v1/users/**`, `/api/v1/schedules/**`, and `/api/v1/ai/**`.
 * `user-service` uses `postgres-users`.
 * `schedule-service` uses `postgres-schedule`.
-* `ai-service` receives AI chat requests through the gateway and calls the schedule service through the Docker network.
+* `ai-service` receives chat requests through the gateway and calls Gemini with `GEMINI_API_KEY`.
 
-### Architecture
+PostgreSQL is bound to localhost on the host and persists data in named Docker volumes. In production, `FRONTEND_HOST_BIND` and `GATEWAY_HOST_BIND` should stay set to `127.0.0.1` so Caddy is the only public web entry point.
 
-```text
-Frontend
-   |
-   v
-Gateway
-   |
-   v
-User Service
-Schedule Service
-AI Service
-   |
-   v
-Database
-```
-
-### Stop the application
+### Stop and Rebuild
 
 ```bash
-docker compose down
+docker compose --env-file .env.dev down
+docker compose --env-file .env.dev build --no-cache
+docker compose --env-file .env.dev up
 ```
 
-To stop and remove persisted database volumes:
+To remove persisted database data during local development:
 
 ```bash
-docker compose down -v
+docker compose --env-file .env.dev down -v
 ```
 
-### Rebuild
+### Required Secrets
 
-```bash
-docker compose build --no-cache
-docker compose up
-```
+Set these manually in `.env.prod`:
 
-### Database persistence
-
-Docker Compose creates two named volumes:
-
-* `postgres_users_data`
-* `postgres_schedule_data`
-
-Data survives normal `docker compose down` runs. Use `docker compose down -v` only when you want a clean database reset.
-
-### Local development outside Docker
-
-The existing local defaults are preserved:
-
-* User service expects `jdbc:postgresql://localhost:5432/users_db`
-* Schedule service expects `jdbc:postgresql://localhost:5433/schedule_db`
-* Gateway expects services on `localhost:8082`, `localhost:8084`, and `localhost:8066`
-* Frontend development can continue with Vite on `5173`
-
-You can run only the database containers for local backend development:
-
-```bash
-docker compose up postgres-users postgres-schedule
-```
-
-### Single-container deployment strategy
-
-Some free-tier hosts accept only one web container and do not run Docker Compose. The root `Dockerfile` builds one image containing the frontend nginx server plus the gateway, user service, schedule service, and AI service.
-
-That mode should use managed or external PostgreSQL databases. Set these environment variables on the host:
-
-* `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, and `SPRING_DATASOURCE_PASSWORD` for services that share the host-level names
-* Prefer service-specific database variables if your platform supports them: `USER_SERVICE_DB_URL`, `SCHEDULE_SERVICE_DB_URL`, and matching usernames/passwords
 * `GEMINI_API_KEY`
-* `SCHEDULE_SERVICE_BASE_URL=http://localhost:8084/api/v1/schedules`
-* `USER_SERVICE_URL=http://localhost:8082`
-* `SCHEDULE_SERVICE_URL=http://localhost:8084`
-* `AI_SERVICE_URL=http://localhost:8066`
-* `VITE_API_BASE_URL=/`
+* `POSTGRES_PASSWORD`
+* `USER_SERVICE_DB_PASSWORD`
+* `SCHEDULE_SERVICE_DB_PASSWORD`
 
-Build it with:
-
-```bash
-docker build -t schedow-all-in-one .
-```
-
-Run it with your real environment variables and expose port `80` from the container.
+Do not commit `.env`, `.env.dev`, `.env.prod`, or frontend-local env files.
 
 ### Troubleshooting
 
-* If the AI service is unhealthy or Compose reports `Set GEMINI_API_KEY`, add a real Gemini API key to the root `.env` file. The AI service cannot start without it because Spring AI creates the Gemini client during application startup.
+* If the AI service is unhealthy or Compose reports `Set GEMINI_API_KEY`, add a real Gemini API key to your env file.
 * If backend services cannot connect to PostgreSQL, check `docker compose ps` and confirm both database health checks are passing.
-* If the frontend loads but API calls fail, confirm `VITE_API_BASE_URL=/` and that the `gateway-service` container is healthy.
-* If a port is already in use, override `FRONTEND_PORT`, `GATEWAY_PORT`, `USER_DB_PORT`, or `SCHEDULE_DB_PORT` in `.env`. `GATEWAY_PORT` is the host port; the gateway still listens on `8088` inside Docker.
-* If you need a clean database, run `docker compose down -v` and then `docker compose up --build`.
+* If the frontend loads but API calls fail, confirm `VITE_API_BASE_URL=/` and that `gateway-service` is healthy.
+* If production browser calls fail with CORS errors, confirm `FRONTEND_PRODUCTION_ORIGIN=https://schedowai.duckdns.org` is present in `.env.prod`.
+* If Caddy cannot obtain a certificate, confirm DuckDNS resolves to the EC2 public IP and ports `80` and `443` are open.
