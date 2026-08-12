@@ -2,6 +2,7 @@ type AppEnv = {
   apiBaseUrl: string;
   appName: string;
   registrationEnabled: boolean;
+  demoAccount: { email: string; password: string } | null;
 };
 
 const requireEnv = (value: string | undefined, key: string): string => {
@@ -20,8 +21,13 @@ const parseBoolean = (value: string | undefined, fallback: boolean): boolean => 
   return value.toLowerCase() === 'true';
 };
 
+const demoEmail = import.meta.env.VITE_DEMO_ACCOUNT_EMAIL;
+const demoPassword = import.meta.env.VITE_DEMO_ACCOUNT_PASSWORD;
+
 export const env: AppEnv = {
   apiBaseUrl: requireEnv(import.meta.env.VITE_API_BASE_URL, 'VITE_API_BASE_URL'),
   appName: import.meta.env.VITE_APP_NAME || 'Schedow',
   registrationEnabled: parseBoolean(import.meta.env.VITE_REGISTRATION_ENABLED, true),
+  demoAccount: demoEmail && demoPassword ? { email: demoEmail, password: demoPassword } : null,
 };
+
