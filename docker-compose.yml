@@ -153,6 +153,7 @@ services:
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/}
         VITE_APP_NAME: ${VITE_APP_NAME:-Schedow}
+        VITE_REGISTRATION_ENABLED: ${VITE_REGISTRATION_ENABLED:-true}
     container_name: schedow-frontend
     depends_on:
       gateway-service:
