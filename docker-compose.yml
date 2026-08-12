@@ -44,7 +44,15 @@ services:
       SPRING_DATASOURCE_URL: ${USER_SERVICE_DB_URL:-jdbc:postgresql://postgres-users:5432/users_db}
       SPRING_DATASOURCE_USERNAME: ${USER_SERVICE_DB_USERNAME:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${USER_SERVICE_DB_PASSWORD:-postgres}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${USER_SERVICE_DDL_AUTO:-create}
+      SPRING_SQL_INIT_MODE: ${USER_SERVICE_SQL_INIT_MODE:-always}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your env file}
+      REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-true}
+      DEMO_SUPERVISOR_EMAIL: ${DEMO_SUPERVISOR_EMAIL:-}
+      DEMO_SUPERVISOR_PASSWORD_HASH: ${DEMO_SUPERVISOR_PASSWORD_HASH:-}
+      DEMO_SUPERVISOR_PASSWORD: ${DEMO_SUPERVISOR_PASSWORD:-}
+      DEMO_SUPERVISOR_NAME: ${DEMO_SUPERVISOR_NAME:-Demo Supervisor}
+      DEMO_SUPERVISOR_SITE: ${DEMO_SUPERVISOR_SITE:-Hatfield}
     depends_on:
       postgres-users:
         condition: service_healthy
@@ -185,3 +193,4 @@ volumes:
 networks:
   public-proxy:
     external: true
+

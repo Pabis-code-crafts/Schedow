@@ -1,9 +1,13 @@
 package com.schedow.user_service.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.schedow.user_service.entity.User;
@@ -11,7 +15,9 @@ import com.schedow.user_service.repository.UserRepository;
 import com.schedow.user_service.role.Role;
 
 @Component
-public class DemoSupervisorProvisioner implements CommandLineRunner {
+public class DemoSupervisorProvisioner {
+
+    private static final Logger logger = LoggerFactory.getLogger(DemoSupervisorProvisioner.class);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -39,16 +45,17 @@ public class DemoSupervisorProvisioner implements CommandLineRunner {
         this.site = site;
     }
 
-    @Override
-    public void run(String... args) {
+    @EventListener(ApplicationReadyEvent.class)
+    @Transactional
+    public void provisionDemoSupervisor() {
         if (!StringUtils.hasText(email)) {
+            logger.info("Demo supervisor provisioning skipped: DEMO_SUPERVISOR_EMAIL is not configured.");
             return;
         }
 
         String encodedPassword = resolvePassword();
-
-        User user = userRepository.findByEmail(email)
-                .orElseGet(User::new);
+        boolean existing = userRepository.findByEmail(email).isPresent();
+        User user = userRepository.findByEmail(email).orElseGet(User::new);
 
         user.setName(StringUtils.hasText(name) ? name : "Demo Supervisor");
         user.setEmail(email);
@@ -59,6 +66,13 @@ public class DemoSupervisorProvisioner implements CommandLineRunner {
         user.setActive(true);
 
         userRepository.save(user);
+
+        logger.info(
+                "Demo supervisor {} for email {} with role {}.",
+                existing ? "updated" : "created",
+                email,
+                Role.SUPERVISOR
+        );
     }
 
     private String resolvePassword() {
