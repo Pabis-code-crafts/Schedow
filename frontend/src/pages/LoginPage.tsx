@@ -3,6 +3,7 @@ import Link from '@mui/material/Link';
 import { useState } from 'react';
 import { Link as RouterLink, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
+import { env } from '@/config/env';
 import { AuthPageShell, Button, Stack, TextField, Typography, authTextFieldSx } from '@/pages/AuthPageShell';
 import { useAuth } from '@/hooks/useAuth';
 import { useLoginUser } from '@/features/users/queries';
@@ -45,9 +46,11 @@ export function LoginPage() {
         <TextField autoComplete="current-password" fullWidth label="Password" onChange={(event) => setPassword(event.target.value)} required sx={authTextFieldSx} type="password" value={password} />
         {login.error ? <Alert severity="error">{getApiErrorMessage(login.error, 'Could not log in.')}</Alert> : null}
         <Button disabled={login.isPending || !email || !password} type="submit" variant="contained">{login.isPending ? 'Logging in...' : 'Log in'}</Button>
-        <Typography color="text.secondary" textAlign="center" variant="body2">
-          New to Schedow? <Link component={RouterLink} to="/register">Create an account</Link>
-        </Typography>
+        {env.registrationEnabled ? (
+          <Typography color="text.secondary" textAlign="center" variant="body2">
+            New to Schedow? <Link component={RouterLink} to="/register">Create an account</Link>
+          </Typography>
+        ) : null}
       </Stack>
     </AuthPageShell>
   );

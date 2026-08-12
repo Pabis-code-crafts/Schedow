@@ -1,6 +1,7 @@
 import { Navigate, Outlet, createBrowserRouter, useLocation } from 'react-router-dom';
 
 import { App } from '@/App';
+import { env } from '@/config/env';
 import { useAuth } from '@/hooks/useAuth';
 import { DesignSystemShowcase } from '@/design-system/DesignSystemShowcase';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -28,7 +29,7 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
   },
   {
     path: '/register',
-    element: <RegisterPage />,
+    element: env.registrationEnabled ? <RegisterPage /> : <Navigate replace to="/login" />,
   },
   {
     element: <RequireAuth />,
