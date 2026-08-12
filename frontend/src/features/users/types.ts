@@ -9,6 +9,11 @@ export type RegisterUserPayload = {
   contractedHours: number;
 };
 
+export type LoginUserPayload = {
+  email: string;
+  password: string;
+};
+
 export type UserResponse = {
   id: number;
   name: string;
@@ -17,4 +22,9 @@ export type UserResponse = {
   site: string;
   contractedHours: number;
   active: boolean;
+};
+
+export type AuthResponse = {
+  accessToken: string;
+  user: UserResponse;
 };

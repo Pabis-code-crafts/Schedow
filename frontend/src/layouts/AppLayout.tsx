@@ -6,14 +6,16 @@ import { NavigationDrawer } from '@/layouts/components/NavigationDrawer';
 import { TopAppBar } from '@/layouts/components/TopAppBar';
 
 const drawerWidth = 280;
-const collapsedDrawerWidth = 88;
+const collapsedDrawerWidth = 84;
 
 export function AppLayout({ children }: PropsWithChildren) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const activeDrawerWidth = collapsedDrawerWidth;
+  const [isDesktopExpanded, setIsDesktopExpanded] = useState(false);
 
   const closeDrawer = () => setIsDrawerOpen(false);
-  const toggleDrawer = () => setIsDrawerOpen((current) => !current);
+  const toggleNavigation = () => {
+    setIsDrawerOpen((current) => !current);
+  };
 
   return (
     <Box
@@ -23,26 +25,30 @@ export function AppLayout({ children }: PropsWithChildren) {
         minHeight: '100vh',
       }}
     >
-      <TopAppBar drawerWidth={activeDrawerWidth} onMenuClick={toggleDrawer} />
+      <TopAppBar onMenuClick={toggleNavigation} />
       <NavigationDrawer
         collapsedWidth={collapsedDrawerWidth}
-        isCollapsed
         drawerWidth={drawerWidth}
+        isCollapsed={!isDesktopExpanded}
         isOpen={isDrawerOpen}
         onClose={closeDrawer}
+        onMouseEnter={() => setIsDesktopExpanded(true)}
+        onMouseLeave={() => setIsDesktopExpanded(false)}
+        onToggleCollapse={() => setIsDesktopExpanded((current) => !current)}
       />
       <Box
         component="main"
         sx={{
+          backgroundColor: 'background.default',
           flexGrow: 1,
           minWidth: 0,
-          backgroundColor: 'background.default',
-          px: { xs: 2, sm: 3, lg: 4 },
           pb: { xs: 3, sm: 4 },
+          px: { xs: 2, sm: 3, lg: 3.5 },
+          width: { md: `calc(100% - ${collapsedDrawerWidth}px)` },
         }}
       >
-        <Toolbar />
-        <Box sx={{ mx: 'auto', maxWidth: 1680, pt: { xs: 2, sm: 3 } }}>{children}</Box>
+        <Toolbar sx={{ minHeight: { xs: 68, sm: 76 } }} />
+        <Box sx={{ mx: 'auto', maxWidth: 1680, pt: { xs: 2, sm: 2.5 } }}>{children}</Box>
       </Box>
     </Box>
   );

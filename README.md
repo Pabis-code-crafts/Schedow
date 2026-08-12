@@ -249,11 +249,16 @@ To remove persisted database data during local development:
 docker compose --env-file .env.dev down -v
 ```
 
+
+### Rate Limiting
+
+The gateway applies configurable token-bucket rate limits to `/api/**` and a stricter separate limit to `/api/v1/ai/**`. Local defaults are relaxed; production defaults are `100` API requests/minute and `10` AI requests/minute per client IP. See [docs/deployment.md](docs/deployment.md) for the scaling note and Redis/shared-storage follow-up.
 ### Required Secrets
 
 Set these manually in `.env.prod`:
 
 * `GEMINI_API_KEY`
+* `JWT_SECRET` - use a strong random value at least 32 characters long; it must be identical for `user-service` and `gateway-service`
 * `POSTGRES_PASSWORD`
 * `USER_SERVICE_DB_PASSWORD`
 * `SCHEDULE_SERVICE_DB_PASSWORD`
@@ -267,3 +272,5 @@ Do not commit `.env`, `.env.dev`, `.env.prod`, or frontend-local env files.
 * If the frontend loads but API calls fail, confirm `VITE_API_BASE_URL=/` and that `gateway-service` is healthy.
 * If production browser calls fail with CORS errors, confirm `FRONTEND_PRODUCTION_ORIGIN=https://schedowai.duckdns.org` is present in `.env.prod`.
 * If Caddy cannot obtain a certificate, confirm DuckDNS resolves to the EC2 public IP and ports `80` and `443` are open.
+
+

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 import { env } from '@/config/env';
-import { getAccessToken } from '@/utils/tokenStorage';
+import { clearAuthStorage, getAccessToken } from '@/utils/tokenStorage';
 
 export const httpClient = axios.create({
   baseURL: env.apiBaseUrl,
@@ -19,3 +19,18 @@ httpClient.interceptors.request.use((config) => {
 
   return config;
 });
+
+httpClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      clearAuthStorage();
+      const path = window.location.pathname;
+      if (!path.startsWith('/login') && !path.startsWith('/register')) {
+        window.location.assign('/login');
+      }
+    }
+
+    return Promise.reject(error);
+  },
+);

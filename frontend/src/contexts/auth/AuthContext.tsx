@@ -2,7 +2,7 @@ import { useMemo, useState, type PropsWithChildren } from 'react';
 
 import { AuthContext } from '@/contexts/auth/context';
 import type { AuthContextValue, AuthState, AuthUser } from '@/contexts/auth/types';
-import { clearAccessToken, getAccessToken, setAccessToken } from '@/utils/tokenStorage';
+import { clearAuthStorage, getAccessToken, getStoredAuthUser, setAccessToken, setStoredAuthUser } from '@/utils/tokenStorage';
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [authState, setAuthState] = useState<AuthState>(() => {
@@ -10,7 +10,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     return {
       accessToken,
-      user: null,
+      user: accessToken ? getStoredAuthUser() : null,
       isAuthenticated: Boolean(accessToken),
     };
   });
@@ -20,6 +20,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       ...authState,
       loginWithToken: (accessToken: string, user: AuthUser | null = null) => {
         setAccessToken(accessToken);
+        setStoredAuthUser(user);
         setAuthState({
           accessToken,
           user,
@@ -27,7 +28,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         });
       },
       logout: () => {
-        clearAccessToken();
+        clearAuthStorage();
         setAuthState({
           accessToken: null,
           user: null,
@@ -35,6 +36,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         });
       },
       setUser: (user: AuthUser | null) => {
+        setStoredAuthUser(user);
         setAuthState((current) => ({
           ...current,
           user,

@@ -6,101 +6,63 @@ import java.util.stream.Collectors;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.schedow.user_service.dto.AuthResponse;
 import com.schedow.user_service.dto.LoginRequest;
 import com.schedow.user_service.dto.RegisterUserRequest;
 import com.schedow.user_service.dto.UserResponse;
 import com.schedow.user_service.entity.User;
+import com.schedow.user_service.exception.InvalidCredentialsException;
 import com.schedow.user_service.repository.UserRepository;
 import com.schedow.user_service.util.JwtService;
 
 @Service
 public class UserService {
 
-private final UserRepository userRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-private final PasswordEncoder passwordEncoder;
-
-private final JwtService jwtService;
-
-public UserService(UserRepository userRepository,
-PasswordEncoder passwordEncoder,
-JwtService jwtService) {
-
-
-this.userRepository = userRepository;
-this.passwordEncoder = passwordEncoder;
-this.jwtService = jwtService;
-
-}
-
-
-public String loginUser(LoginRequest request) {
-
-    System.out.println("Login request received");
-
-    User user = userRepository.findByEmail(request.getEmail())
-            .orElseThrow(() -> new RuntimeException("Invalid email or password"));
-
-    boolean passwordMatches = passwordEncoder.matches(
-            request.getPassword(),
-            user.getPassword()
-    );
-
-    if (!passwordMatches) {
-        throw new RuntimeException("Invalid email or password");
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
-    System.out.println("Generating token");
+    public AuthResponse loginUser(LoginRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(InvalidCredentialsException::new);
 
-    return jwtService.generateToken(user.getEmail());
-}
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new InvalidCredentialsException();
+        }
 
-
-
-
-public UserResponse registerUser(RegisterUserRequest request) {
-
-    if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-        throw new RuntimeException("Email already exists");
+        return new AuthResponse(jwtService.generateToken(user), toResponse(user));
     }
 
-    User user = new User();
+    public UserResponse registerUser(RegisterUserRequest request) {
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new RuntimeException("Email already exists");
+        }
 
-    user.setName(request.getName());
-    user.setEmail(request.getEmail());
-    user.setPassword(passwordEncoder.encode(request.getPassword()));
-    user.setRole(request.getRole());
+        User user = new User();
+        user.setName(request.getName());
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRole(request.getRole());
+        user.setSite(request.getSite());
+        user.setContractedHours(request.getContractedHours());
+        user.setActive(true);
 
-    user.setSite(request.getSite());
+        return toResponse(userRepository.save(user));
+    }
 
-    user.setContractedHours(
-            request.getContractedHours()
-    );
+    public List<UserResponse> getActiveWorkers() {
+        return userRepository.findByActiveTrue().stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
 
-    user.setActive(true);
-
-    User savedUser = userRepository.save(user);
-
-    UserResponse response = new UserResponse();
-
-    response.setId(savedUser.getId());
-    response.setName(savedUser.getName());
-    response.setEmail(savedUser.getEmail());
-    response.setRole(savedUser.getRole());
-
-    response.setSite(savedUser.getSite());
-
-    response.setContractedHours(
-            savedUser.getContractedHours()
-    );
-
-    response.setActive(savedUser.getActive());
-
-    return response;
-}
-public List<UserResponse> getActiveWorkers() {
-    List<User> activeWorkers = userRepository.findByActiveTrue();
-    return activeWorkers.stream().map(user -> {
+    private UserResponse toResponse(User user) {
         UserResponse response = new UserResponse();
         response.setId(user.getId());
         response.setName(user.getName());
@@ -110,7 +72,5 @@ public List<UserResponse> getActiveWorkers() {
         response.setContractedHours(user.getContractedHours());
         response.setActive(user.getActive());
         return response;
-    }).collect(Collectors.toList());
-
-}
+    }
 }

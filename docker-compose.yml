@@ -44,6 +44,7 @@ services:
       SPRING_DATASOURCE_URL: ${USER_SERVICE_DB_URL:-jdbc:postgresql://postgres-users:5432/users_db}
       SPRING_DATASOURCE_USERNAME: ${USER_SERVICE_DB_USERNAME:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${USER_SERVICE_DB_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your env file}
     depends_on:
       postgres-users:
         condition: service_healthy
@@ -114,6 +115,13 @@ services:
       USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8082}
       SCHEDULE_SERVICE_URL: ${SCHEDULE_SERVICE_URL:-http://schedule-service:8084}
       AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai-service:8066}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your env file}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-100}
+      RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-60}
+      AI_RATE_LIMIT_ENABLED: ${AI_RATE_LIMIT_ENABLED:-true}
+      AI_RATE_LIMIT_REQUESTS: ${AI_RATE_LIMIT_REQUESTS:-10}
+      AI_RATE_LIMIT_WINDOW_SECONDS: ${AI_RATE_LIMIT_WINDOW_SECONDS:-60}
     depends_on:
       user-service:
         condition: service_healthy
@@ -170,3 +178,5 @@ volumes:
   postgres_schedule_data:
   caddy_data:
   caddy_config:
+
+

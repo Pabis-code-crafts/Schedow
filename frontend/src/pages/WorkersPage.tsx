@@ -129,7 +129,6 @@ export function WorkersPage() {
             isError={shiftTemplatesQuery.isError}
             isLoading={shiftTemplatesQuery.isLoading}
             shifts={shiftTemplates}
-            onAddShift={() => setIsAddShiftOpen(true)}
           />
         )}
       </Stack>
@@ -307,10 +306,9 @@ type ShiftsTabProps = {
   isError: boolean;
   isLoading: boolean;
   shifts: ShiftTemplateDto[];
-  onAddShift: () => void;
 };
 
-function ShiftsTab({ error, isError, isLoading, onAddShift, shifts }: ShiftsTabProps) {
+function ShiftsTab({ error, isError, isLoading, shifts }: ShiftsTabProps) {
   return (
     <AppCard>
       <Stack spacing={3}>
@@ -324,9 +322,7 @@ function ShiftsTab({ error, isError, isLoading, onAddShift, shifts }: ShiftsTabP
             description="Shift templates are loaded from the existing Schedule Service."
             title="Shift templates"
           />
-          <Button onClick={onAddShift} startIcon={<AddRoundedIcon />} variant="contained">
-            Add Shift
-          </Button>
+          <Tooltip title="Coming Soon"><span><Button disabled startIcon={<AddRoundedIcon />} variant="contained">Add Shift</Button></span></Tooltip>
         </Stack>
 
         {isLoading ? (
@@ -336,9 +332,7 @@ function ShiftsTab({ error, isError, isLoading, onAddShift, shifts }: ShiftsTabP
         ) : shifts.length === 0 ? (
           <EmptyState
             action={
-              <Button onClick={onAddShift} startIcon={<AddRoundedIcon />} variant="contained">
-                Add Shift
-              </Button>
+              <Tooltip title="Coming Soon"><span><Button disabled startIcon={<AddRoundedIcon />} variant="contained">Add Shift</Button></span></Tooltip>
             }
             description="Create shift templates here, then assign workers from the Schedule page."
             icon={<CalendarMonthRoundedIcon />}
@@ -638,3 +632,6 @@ function getMutationErrorMessage(error: unknown, fallback: string): string | und
 
   return getApiErrorMessage(error, fallback);
 }
+
+
+

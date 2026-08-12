@@ -5,12 +5,10 @@ spring:
   application:
     name: gateway-service
 
-
   cloud:
     gateway:
       server:
         webflux:
-
           globalcors:
             cors-configurations:
               '[/**]':
@@ -28,13 +26,12 @@ spring:
                 allowedHeaders: "*"
 
           routes:
-
             - id: user-service
               uri: ${USER_SERVICE_URL:http://localhost:8082}
               predicates:
                 - Path=/api/v1/users/**
-              # filters:
-              #   - JwtAuthenticationFilter
+              filters:
+                - JwtAuthenticationFilter
 
             - id: schedule-service
               uri: ${SCHEDULE_SERVICE_URL:http://localhost:8084}
@@ -47,12 +44,27 @@ spring:
               uri: ${AI_SERVICE_URL:http://localhost:8066}
               predicates:
                 - Path=/api/v1/ai/**
-            
+              filters:
+                - JwtAuthenticationFilter
+
+schedow:
+  jwt:
+    secret: ${JWT_SECRET}
+  rate-limit:
+    overall:
+      enabled: ${RATE_LIMIT_ENABLED:true}
+      requests: ${RATE_LIMIT_REQUESTS:100}
+      window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
+    ai:
+      enabled: ${AI_RATE_LIMIT_ENABLED:true}
+      requests: ${AI_RATE_LIMIT_REQUESTS:10}
+      window-seconds: ${AI_RATE_LIMIT_WINDOW_SECONDS:60}
+
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
 
 logging:
   level:

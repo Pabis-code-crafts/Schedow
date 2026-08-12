@@ -90,11 +90,47 @@ The gateway uses Docker service names for internal routing:
 
 PostgreSQL is not publicly exposed. In production `.env.prod`, `FRONTEND_HOST_BIND` and `GATEWAY_HOST_BIND` are set to `127.0.0.1`, and the database ports are already bound to `127.0.0.1` in Compose.
 
+
+## Rate Limiting
+
+Rate limiting is enforced in `gateway-service` before requests are routed to backend services. It is separate from authentication and currently uses the client IP address as the rate-limit key. The key resolution is isolated in the gateway filter so it can later switch to authenticated user ID, organization ID, or API key once authentication is re-enabled.
+
+Two token-bucket limits are applied:
+
+* overall API limit for public `/api/**` requests
+* stricter AI/Gemini limit for `/api/v1/ai/**` requests
+
+When a bucket is empty, the gateway returns `HTTP 429 Too Many Requests` with a `Retry-After` header. The gateway logs a warning with the limit scope, route group, and a hashed client key. It does not log request bodies, query data, Authorization headers, or `GEMINI_API_KEY`. Rejections are also counted through Micrometer as `schedow.gateway.rate_limit.rejected` with `scope` and `path` tags. The actuator `metrics` endpoint is enabled for inspection.
+
+Local defaults in `.env.dev.example` are relaxed for normal testing:
+
+```env
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_REQUESTS=1000
+RATE_LIMIT_WINDOW_SECONDS=60
+AI_RATE_LIMIT_ENABLED=true
+AI_RATE_LIMIT_REQUESTS=100
+AI_RATE_LIMIT_WINDOW_SECONDS=60
+```
+
+Production defaults in `.env.prod.example` are more conservative:
+
+```env
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_REQUESTS=100
+RATE_LIMIT_WINDOW_SECONDS=60
+AI_RATE_LIMIT_ENABLED=true
+AI_RATE_LIMIT_REQUESTS=10
+AI_RATE_LIMIT_WINDOW_SECONDS=60
+```
+
+The initial limiter is in-memory and therefore per gateway container instance. If production scales beyond one `gateway-service` replica, each replica will enforce its own buckets independently. The future production approach should move bucket state to shared storage such as Redis, or use Spring Cloud Gateway's Redis-backed rate limiter, so all gateway instances share the same counters.
 ## Required Secrets
 
 Set these manually in `.env.prod`:
 
 * `GEMINI_API_KEY`
+* `JWT_SECRET` - use a strong random value at least 32 characters long; it must be identical for `user-service` and `gateway-service`
 * `POSTGRES_PASSWORD`
 * `USER_SERVICE_DB_PASSWORD`
 * `SCHEDULE_SERVICE_DB_PASSWORD`
@@ -110,3 +146,5 @@ Use the same PostgreSQL password values where appropriate unless you intentional
 * `POST /api/v1/ai/chat` reaches the AI service and Gemini
 * Gateway CORS allows `https://schedowai.duckdns.org`
 * PostgreSQL containers are healthy and named volumes persist data
+
+
