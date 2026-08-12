@@ -158,6 +158,9 @@ services:
     container_name: schedow-caddy
     profiles:
       - production
+    networks:
+      - default
+      - public-proxy
     depends_on:
       gateway-service:
         condition: service_healthy
@@ -179,4 +182,6 @@ volumes:
   caddy_data:
   caddy_config:
 
-
+networks:
+  public-proxy:
+    external: true

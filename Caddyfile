@@ -7,3 +7,7 @@ schedowai.duckdns.org {
         reverse_proxy frontend:80
     }
 }
+
+pavithran.duckdns.org {
+    reverse_proxy developer-portfolio:80
+}
