@@ -2,10 +2,6 @@ import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -44,7 +40,7 @@ export function LoginPage() {
   useEffect(() => {
     let active = true;
 
-    checkBackendAvailability().then((available) => {
+    void checkBackendAvailability().then((available) => {
       if (active) {
         setAvailability(available ? 'available' : 'unavailable');
       }
@@ -103,6 +99,7 @@ export function LoginPage() {
         subtitle="Use your Schedow credentials to access the scheduling workspace."
       >
         <Stack component="form" spacing={2.25} onSubmit={(event) => { event.preventDefault(); submit(); }}>
+          <MobileBestViewedNotice open={isSmallViewport && !mobileNoticeDismissed} onContinue={dismissMobileNotice} />
           {showUnavailableMessage ? <MaintenanceNotice /> : null}
           <TextField autoComplete="email" autoFocus fullWidth label="Email" onChange={(event) => setEmail(event.target.value)} required sx={authTextFieldSx} type="email" value={email} />
           <TextField autoComplete="current-password" fullWidth label="Password" onChange={(event) => setPassword(event.target.value)} required sx={authTextFieldSx} type="password" value={password} />
@@ -110,8 +107,6 @@ export function LoginPage() {
           <Button disabled={login.isPending || !email || !password} type="submit" variant="contained">{login.isPending ? 'Signing in...' : 'Sign In'}</Button>
         </Stack>
       </AuthPageShell>
-
-      <MobileBestViewedNotice open={isSmallViewport && !mobileNoticeDismissed} onContinue={dismissMobileNotice} />
     </>
   );
 }
@@ -175,21 +170,37 @@ function CredentialRow({ copied, label, onCopy, value }: { copied: boolean; labe
 }
 
 function MobileBestViewedNotice({ onContinue, open }: { open: boolean; onContinue: () => void }) {
+  const theme = useTheme();
+
+  if (!open) {
+    return null;
+  }
+
   return (
-    <Dialog fullWidth maxWidth="xs" open={open}>
-      <DialogTitle>Best viewed on a laptop or desktop</DialogTitle>
-      <DialogContent>
-        <Typography color="text.secondary" variant="body2">
-          Schedow is designed for a larger screen to give you the best scheduling experience. Please open Schedow on a laptop or desktop to explore the full demo.
-        </Typography>
-        <Typography sx={{ mt: 1.5, fontWeight: 700 }} variant="body2">
-          Thanks for understanding!
-        </Typography>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 3 }}>
-        <Button onClick={onContinue} variant="contained">Continue anyway</Button>
-      </DialogActions>
-    </Dialog>
+    <Box
+      role="status"
+      sx={{
+        bgcolor: alpha(theme.palette.primary.main, 0.065),
+        border: '1px solid',
+        borderColor: alpha(theme.palette.primary.main, 0.18),
+        borderRadius: 2,
+        px: 2,
+        py: 1.75,
+      }}
+    >
+      <Stack spacing={1.25}>
+        <Box>
+          <Typography sx={{ fontWeight: 850 }} variant="subtitle2">Best viewed on a laptop or desktop</Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.5 }} variant="body2">
+            Schedow is designed for a larger screen to give you the best scheduling experience. Please open Schedow on a laptop or desktop to explore the full demo.
+          </Typography>
+          <Typography sx={{ mt: 1, fontWeight: 700 }} variant="body2">
+            Thanks for understanding!
+          </Typography>
+        </Box>
+        <Button onClick={onContinue} size="small" variant="outlined">Continue anyway</Button>
+      </Stack>
+    </Box>
   );
 }
 

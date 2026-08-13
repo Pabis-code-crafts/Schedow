@@ -27,7 +27,7 @@ export function AuthPageShell({
           <Typography sx={{ fontSize: 28, fontWeight: 850 }}>{env.appName}</Typography>
         </Stack>
         <Stack alignItems="stretch" direction={{ xs: 'column', md: 'row' }} spacing={3} sx={{ width: '100%' }}>
-          <AppCard sx={{ width: '100%', boxShadow: 4, flex: '1 1 0' }}>
+          <AppCard sx={{ width: '100%', boxShadow: 4, flex: { xs: '0 0 auto', md: '1 1 0' } }}>
             <Stack spacing={3}>
               <Box>
                 <Typography component="h1" sx={{ fontSize: 28, fontWeight: 850 }}>{title}</Typography>
@@ -37,7 +37,7 @@ export function AuthPageShell({
             </Stack>
           </AppCard>
           {sideContent ? (
-            <AppCard sx={{ width: '100%', boxShadow: 3, flex: '1 1 0' }}>
+            <AppCard sx={{ width: '100%', boxShadow: 3, flex: { xs: '0 0 auto', md: '1 1 0' } }}>
               {sideContent}
             </AppCard>
           ) : null}
