@@ -2,33 +2,58 @@ import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
-import { alpha } from '@mui/material/styles';
-import { useState } from 'react';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { alpha, useTheme } from '@mui/material/styles';
+import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { AuthPageShell, Button, Stack, TextField, Typography, authTextFieldSx } from '@/pages/AuthPageShell';
 import { useAuth } from '@/hooks/useAuth';
 import { useLoginUser } from '@/features/users/queries';
-import { getApiErrorMessage } from '@/services/api';
+import { checkBackendAvailability, getApiErrorMessage, isBackendUnavailableError } from '@/services/api';
 
 const DEMO_ACCOUNT_EMAIL = 'demo-supervisor@example.com';
 const DEMO_ACCOUNT_PASSWORD = 'SchedowDemo2026!';
 const DEMO_CREDENTIALS = `Email: ${DEMO_ACCOUNT_EMAIL}
 Password: ${DEMO_ACCOUNT_PASSWORD}`;
+const MOBILE_NOTICE_STORAGE_KEY = 'schedow-mobile-notice-dismissed';
 
 type CopiedTarget = 'email' | 'password' | 'credentials' | null;
+type AvailabilityState = 'checking' | 'available' | 'unavailable';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [copiedTarget, setCopiedTarget] = useState<CopiedTarget>(null);
+  const [availability, setAvailability] = useState<AvailabilityState>('checking');
+  const [mobileNoticeDismissed, setMobileNoticeDismissed] = useState(() => readMobileNoticeDismissed());
   const auth = useAuth();
   const login = useLoginUser();
   const navigate = useNavigate();
   const location = useLocation();
+  const theme = useTheme();
+  const isSmallViewport = useMediaQuery(theme.breakpoints.down('sm'));
   const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/schedule';
+
+  useEffect(() => {
+    let active = true;
+
+    checkBackendAvailability().then((available) => {
+      if (active) {
+        setAvailability(available ? 'available' : 'unavailable');
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   if (auth.isAuthenticated) {
     return <Navigate replace to={from} />;
@@ -40,11 +65,22 @@ export function LoginPage() {
     window.setTimeout(() => setCopiedTarget((current) => (current === target ? null : current)), 1800);
   };
 
+  const dismissMobileNotice = () => {
+    window.sessionStorage.setItem(MOBILE_NOTICE_STORAGE_KEY, 'true');
+    setMobileNoticeDismissed(true);
+  };
+
   const submit = () => {
     login.mutate(
       { email, password },
       {
+        onError: (error) => {
+          if (isBackendUnavailableError(error)) {
+            setAvailability('unavailable');
+          }
+        },
         onSuccess: (response) => {
+          setAvailability('available');
           auth.loginWithToken(response.accessToken, {
             id: String(response.user.id),
             email: response.user.email,
@@ -57,19 +93,26 @@ export function LoginPage() {
     );
   };
 
+  const showUnavailableMessage = availability === 'unavailable' || isBackendUnavailableError(login.error);
+
   return (
-    <AuthPageShell
-      sideContent={<DemoCredentialsCard copiedTarget={copiedTarget} onCopy={(value, target) => void copyText(value, target)} />}
-      title="Sign in"
-      subtitle="Use your Schedow credentials to access the scheduling workspace."
-    >
-      <Stack component="form" spacing={2.25} onSubmit={(event) => { event.preventDefault(); submit(); }}>
-        <TextField autoComplete="email" autoFocus fullWidth label="Email" onChange={(event) => setEmail(event.target.value)} required sx={authTextFieldSx} type="email" value={email} />
-        <TextField autoComplete="current-password" fullWidth label="Password" onChange={(event) => setPassword(event.target.value)} required sx={authTextFieldSx} type="password" value={password} />
-        {login.error ? <Alert severity="error">{getApiErrorMessage(login.error, 'Could not log in.')}</Alert> : null}
-        <Button disabled={login.isPending || !email || !password} type="submit" variant="contained">{login.isPending ? 'Signing in...' : 'Sign In'}</Button>
-      </Stack>
-    </AuthPageShell>
+    <>
+      <AuthPageShell
+        sideContent={<DemoCredentialsCard copiedTarget={copiedTarget} onCopy={(value, target) => void copyText(value, target)} />}
+        title="Sign in"
+        subtitle="Use your Schedow credentials to access the scheduling workspace."
+      >
+        <Stack component="form" spacing={2.25} onSubmit={(event) => { event.preventDefault(); submit(); }}>
+          {showUnavailableMessage ? <MaintenanceNotice /> : null}
+          <TextField autoComplete="email" autoFocus fullWidth label="Email" onChange={(event) => setEmail(event.target.value)} required sx={authTextFieldSx} type="email" value={email} />
+          <TextField autoComplete="current-password" fullWidth label="Password" onChange={(event) => setPassword(event.target.value)} required sx={authTextFieldSx} type="password" value={password} />
+          {login.error && !isBackendUnavailableError(login.error) ? <Alert severity="error">{getApiErrorMessage(login.error, 'Could not log in.')}</Alert> : null}
+          <Button disabled={login.isPending || !email || !password} type="submit" variant="contained">{login.isPending ? 'Signing in...' : 'Sign In'}</Button>
+        </Stack>
+      </AuthPageShell>
+
+      <MobileBestViewedNotice open={isSmallViewport && !mobileNoticeDismissed} onContinue={dismissMobileNotice} />
+    </>
   );
 }
 
@@ -129,4 +172,42 @@ function CredentialRow({ copied, label, onCopy, value }: { copied: boolean; labe
       </Stack>
     </Box>
   );
+}
+
+function MobileBestViewedNotice({ onContinue, open }: { open: boolean; onContinue: () => void }) {
+  return (
+    <Dialog fullWidth maxWidth="xs" open={open}>
+      <DialogTitle>Best viewed on a laptop or desktop</DialogTitle>
+      <DialogContent>
+        <Typography color="text.secondary" variant="body2">
+          Schedow is designed for a larger screen to give you the best scheduling experience. Please open Schedow on a laptop or desktop to explore the full demo.
+        </Typography>
+        <Typography sx={{ mt: 1.5, fontWeight: 700 }} variant="body2">
+          Thanks for understanding!
+        </Typography>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 3 }}>
+        <Button onClick={onContinue} variant="contained">Continue anyway</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function MaintenanceNotice() {
+  return (
+    <Alert severity="warning" sx={{ alignItems: 'flex-start' }}>
+      <Typography sx={{ fontWeight: 850 }} variant="subtitle2">Schedow is temporarily unavailable</Typography>
+      <Typography variant="body2">We're doing some maintenance and improvements.</Typography>
+      <Typography variant="body2">Please check back in about an hour.</Typography>
+      <Typography variant="body2">Thanks for your patience!</Typography>
+    </Alert>
+  );
+}
+
+function readMobileNoticeDismissed() {
+  try {
+    return window.sessionStorage.getItem(MOBILE_NOTICE_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
 }
