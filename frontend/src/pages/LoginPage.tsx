@@ -7,9 +7,10 @@ import Tooltip from '@mui/material/Tooltip';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { AuthPageShell, Button, Stack, TextField, Typography, authTextFieldSx } from '@/pages/AuthPageShell';
+import { env } from '@/config/env';
 import { useAuth } from '@/hooks/useAuth';
 import { useLoginUser } from '@/features/users/queries';
 import { checkBackendAvailability, getApiErrorMessage, isBackendUnavailableError } from '@/services/api';
@@ -105,6 +106,7 @@ export function LoginPage() {
           <TextField autoComplete="current-password" fullWidth label="Password" onChange={(event) => setPassword(event.target.value)} required sx={authTextFieldSx} type="password" value={password} />
           {login.error && !isBackendUnavailableError(login.error) ? <Alert severity="error">{getApiErrorMessage(login.error, 'Could not log in.')}</Alert> : null}
           <Button disabled={login.isPending || !email || !password} type="submit" variant="contained">{login.isPending ? 'Signing in...' : 'Sign In'}</Button>
+          {env.registrationEnabled ? <Button component={RouterLink} to="/register" variant="outlined">Create account</Button> : null}
         </Stack>
       </AuthPageShell>
     </>
