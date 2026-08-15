@@ -16,7 +16,7 @@ import Toolbar from '@mui/material/Toolbar';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { env } from '@/config/env';
@@ -34,7 +34,10 @@ type AppNotification = {
   unread: boolean;
 };
 
-const DEMO_SUPERVISOR_EMAIL = 'demo-supervisor@example.com';
+type WebAudioWindow = Window & typeof globalThis & {
+  webkitAudioContext?: typeof AudioContext;
+};
+
 const DEMO_NOTIFICATIONS: AppNotification[] = [
   {
     id: 'watch-schedow-demo',
@@ -52,21 +55,54 @@ const DEMO_NOTIFICATIONS: AppNotification[] = [
   },
 ];
 
+function playNotificationSound() {
+  try {
+    const audioWindow = window as WebAudioWindow;
+    const AudioContextConstructor = audioWindow.AudioContext ?? audioWindow.webkitAudioContext;
+
+    if (!AudioContextConstructor) {
+      return;
+    }
+
+    const audioContext = new AudioContextConstructor();
+    const now = audioContext.currentTime;
+    const gain = audioContext.createGain();
+    gain.connect(audioContext.destination);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+
+    const firstTone = audioContext.createOscillator();
+    firstTone.type = 'sine';
+    firstTone.frequency.setValueAtTime(880, now);
+    firstTone.frequency.exponentialRampToValueAtTime(1320, now + 0.08);
+    firstTone.connect(gain);
+    firstTone.start(now);
+    firstTone.stop(now + 0.14);
+
+    const secondTone = audioContext.createOscillator();
+    secondTone.type = 'triangle';
+    secondTone.frequency.setValueAtTime(660, now + 0.12);
+    secondTone.frequency.exponentialRampToValueAtTime(990, now + 0.2);
+    secondTone.connect(gain);
+    secondTone.start(now + 0.1);
+    secondTone.stop(now + 0.28);
+
+    window.setTimeout(() => void audioContext.close(), 450);
+  } catch {
+    // Some browsers block audio until after user interaction. The notification still opens normally.
+  }
+}
 export function TopAppBar({ onMenuClick }: TopAppBarProps) {
   const [profileAnchorEl, setProfileAnchorEl] = useState<HTMLElement | null>(null);
   const [notificationAnchorEl, setNotificationAnchorEl] = useState<HTMLElement | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const notificationButtonRef = useRef<HTMLButtonElement | null>(null);
   const auth = useAuth();
   const navigate = useNavigate();
   const profileOpen = Boolean(profileAnchorEl);
   const notificationsOpen = Boolean(notificationAnchorEl);
   const displayName = auth.user?.name ?? 'Schedow User';
-  const isDemoSupervisor = useMemo(() => {
-    const email = auth.user?.email?.toLowerCase();
-    const roles = auth.user?.roles ?? [];
-
-    return email === DEMO_SUPERVISOR_EMAIL && roles.includes('SUPERVISOR');
-  }, [auth.user?.email, auth.user?.roles]);
   const unreadNotificationCount = notifications.filter((notification) => notification.unread).length;
   const initials = displayName
     .split(' ')
@@ -76,18 +112,21 @@ export function TopAppBar({ onMenuClick }: TopAppBarProps) {
     .toUpperCase() || 'SU';
 
   useEffect(() => {
-    if (!isDemoSupervisor) {
+    if (!auth.isAuthenticated) {
       setNotifications([]);
       return undefined;
     }
 
     setNotifications([]);
+    setNotificationAnchorEl(null);
     const timeoutId = window.setTimeout(() => {
       setNotifications(DEMO_NOTIFICATIONS);
+      setNotificationAnchorEl(notificationButtonRef.current);
+      playNotificationSound();
     }, 3000);
 
     return () => window.clearTimeout(timeoutId);
-  }, [isDemoSupervisor]);
+  }, [auth.isAuthenticated, auth.user?.id]);
 
   const openNotifications = (event: React.MouseEvent<HTMLElement>) => {
     setNotificationAnchorEl(event.currentTarget);
@@ -167,6 +206,7 @@ export function TopAppBar({ onMenuClick }: TopAppBarProps) {
             <IconButton
               aria-label="Notifications"
               onClick={openNotifications}
+              ref={notificationButtonRef}
               sx={{
                 bgcolor: (theme) => alpha(theme.palette.background.paper, 0.8),
                 border: 1,
